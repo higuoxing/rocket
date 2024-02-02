@@ -21,6 +21,7 @@ typedef enum TokenKind {
   TK_Quote,
   /* '`' */
   TK_Backquote,
+  TK_Boolean,
   TK_Number,
 } TokenKind;
 
@@ -138,6 +139,36 @@ static int tokenize(const char *program) {
       ++p;
       break;
     }
+    case '#': {
+      const char *endp = p;
+      int tok_len;
+      /* Looking ahead. */
+      while (*endp && !whitespace(*endp)) {
+        ++endp;
+      }
+      tok_len = (int)(endp - p);
+      /* FIXME: Can we simplify??? */
+      if ((tok_len == 5 && strncmp(p, "#true", 5) == 0) ||
+          (tok_len == 2 && strncmp(p, "#t", 2) == 0)) {
+        tokens[tok_index].kind = TK_Boolean;
+        tokens[tok_index].literal = p;
+        tokens[tok_index].tok_len = tok_len;
+        p += tokens[tok_index].tok_len;
+        ++tok_index;
+      } else if ((tok_len == 6 && strncmp(p, "#false", 6) == 0) ||
+                 (tok_len == 2 && strncmp(p, "#f", 2) == 0)) {
+        tokens[tok_index].kind = TK_Boolean;
+        tokens[tok_index].literal = p;
+        tokens[tok_index].tok_len = tok_len;
+        p += tokens[tok_index].tok_len;
+        ++tok_index;
+      } else {
+        /* Raise Error. */
+        fprintf(stdout, "Error\n");
+        exit(1);
+      }
+      break;
+    }
     default:
       if (isdigit(*p)) {
         char *endp;
@@ -193,6 +224,7 @@ static int tokenize(const char *program) {
               } else {
                 /* Raise error. */
                 fprintf(stdout, "Error\n");
+                exit(1);
               }
               /* Consume subsequent. */
               while (*p && is_subsequent(*p)) {
@@ -226,6 +258,7 @@ static int tokenize(const char *program) {
               } else {
                 /* Raise error. */
                 fprintf(stdout, "Error\n");
+                exit(1);
               }
               /* Consume subsequent. */
               while (*p && is_subsequent(*p)) {
@@ -234,6 +267,7 @@ static int tokenize(const char *program) {
             } else {
               /* Raise error. */
               fprintf(stdout, "Error\n");
+              exit(1);
             }
             tokens[tok_index].tok_len = (int)(p - tokens[tok_index].literal);
           }
@@ -291,7 +325,7 @@ static int rocket_main(int argc, char **argv) {
       for (int I = 0; I < consumed; ++I) {
         for (int l = 0; l < tokens[I].tok_len; ++l)
           fprintf(stdout, "%c", tokens[I].literal[l]);
-        fprintf(stdout, "(%d)\n", tokens[I].kind);
+        fprintf(stdout, " (%d)\n", tokens[I].kind);
       }
     }
 
