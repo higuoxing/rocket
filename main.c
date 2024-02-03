@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -6,6 +7,8 @@
 #include <readline/chardefs.h>
 #include <readline/history.h>
 #include <readline/readline.h>
+
+#include "vector.h"
 
 #define PROMPT_STYLE "> "
 
@@ -39,7 +42,36 @@ typedef struct Token {
   int tok_len;
 } Token;
 
-static Token tokens[1024];
+Token *make_token(TokenKind kind, const char *literal, int tok_len) {
+  Token *token = (Token *)malloc(sizeof(Token));
+  token->kind = kind;
+  token->literal = literal;
+  token->tok_len = tok_len;
+  return token;
+}
+
+static const char *token_kind_to_string(TokenKind kind) {
+  switch (kind) {
+  case TK_Unknown:
+    return "Unknown";
+  case TK_LParen:
+    return "LParen";
+  case TK_RParen:
+    return "RParen";
+  case TK_Ident:
+    return "Ident";
+  case TK_Quote:
+    return "Singlequote";
+  case TK_Backquote:
+    return "Backquote";
+  case TK_Boolean:
+    return "Boolean";
+  case TK_Number:
+    return "Number";
+  default:
+    return "Unknown Token";
+  }
+}
 
 static bool is_special_initial(char c) {
   /*
@@ -91,51 +123,40 @@ static bool is_subsequent(char c) {
 /*
  * Tokenize the given program and returns the number of tokens.
  */
-static int tokenize(const char *program) {
+static Vector *tokenize(const char *program) {
   /* Program must be a null terminated string. */
   const char *p = program;
-  int tok_index = 0;
+  Vector *tokens = make_vector();
+  assert(program);
 
   while (*p) {
     /* Consume whitespaces. */
-    while (p && *p && whitespace(*p)) {
+    while (*p && whitespace(*p)) {
       ++p;
     }
 
     /* No more tokens? Return directly. */
     if (!p)
-      return tok_index;
+      return tokens;
 
     switch (*p) {
     case '(': {
-      tokens[tok_index].kind = TK_LParen;
-      tokens[tok_index].literal = p;
-      tokens[tok_index].tok_len = 1;
-      ++tok_index;
+      vector_append(tokens, make_token(TK_LParen, p, 1));
       ++p;
       break;
     }
     case ')': {
-      tokens[tok_index].kind = TK_RParen;
-      tokens[tok_index].literal = p;
-      tokens[tok_index].tok_len = 1;
-      ++tok_index;
+      vector_append(tokens, make_token(TK_RParen, p, 1));
       ++p;
       break;
     }
     case '\'': {
-      tokens[tok_index].kind = TK_Quote;
-      tokens[tok_index].literal = p;
-      tokens[tok_index].tok_len = 1;
-      ++tok_index;
+      vector_append(tokens, make_token(TK_Quote, p, 1));
       ++p;
       break;
     }
     case '`': {
-      tokens[tok_index].kind = TK_Backquote;
-      tokens[tok_index].literal = p;
-      tokens[tok_index].tok_len = 1;
-      ++tok_index;
+      vector_append(tokens, make_token(TK_Backquote, p, 1));
       ++p;
       break;
     }
@@ -150,18 +171,12 @@ static int tokenize(const char *program) {
       /* FIXME: Can we simplify??? */
       if ((tok_len == 5 && strncmp(p, "#true", 5) == 0) ||
           (tok_len == 2 && strncmp(p, "#t", 2) == 0)) {
-        tokens[tok_index].kind = TK_Boolean;
-        tokens[tok_index].literal = p;
-        tokens[tok_index].tok_len = tok_len;
-        p += tokens[tok_index].tok_len;
-        ++tok_index;
+        vector_append(tokens, make_token(TK_Boolean, p, tok_len));
+        p = endp;
       } else if ((tok_len == 6 && strncmp(p, "#false", 6) == 0) ||
                  (tok_len == 2 && strncmp(p, "#f", 2) == 0)) {
-        tokens[tok_index].kind = TK_Boolean;
-        tokens[tok_index].literal = p;
-        tokens[tok_index].tok_len = tok_len;
-        p += tokens[tok_index].tok_len;
-        ++tok_index;
+        vector_append(tokens, make_token(TK_Boolean, p, tok_len));
+        p = endp;
       } else {
         /* Raise Error. */
         fprintf(stdout, "Error\n");
@@ -169,16 +184,14 @@ static int tokenize(const char *program) {
       }
       break;
     }
-    default:
+    default: {
       if (isdigit(*p)) {
         char *endp;
         strtod(p, &endp);
 
-        tokens[tok_index].kind = TK_Number;
-        tokens[tok_index].literal = p;
-        tokens[tok_index].tok_len = (int)(endp - p);
+        vector_append(tokens, make_token(TK_Number, p, (int)(endp - p)));
+
         p = endp;
-        ++tok_index;
         break;
       } else if (/* <initial> <subsequent>* */ (is_initial(*p)) ||
                  /* TODO: <vertical_line> <symbol_element>* <vertical_line> */
@@ -203,19 +216,20 @@ static int tokenize(const char *program) {
          */
         if (is_initial(*p)) {
           /* Case: <initial> <subsequent>* */
-          tokens[tok_index].kind = TK_Ident;
-          tokens[tok_index].literal = p;
+          const char *tok_literal = p;
+          /* Consume initial. */
           ++p;
+          /* Consume subsequent. */
           while (*p && is_subsequent(*p)) {
             ++p;
           }
 
-          tokens[tok_index].tok_len = (int)(p - tokens[tok_index].literal);
+          vector_append(tokens, make_token(TK_Ident, tok_literal,
+                                           (int)(p - tok_literal)));
         } else if (is_explicit_sign(*p) || *p == '.') {
           /* Case: <peculiar_identifier> */
-          tokens[tok_index].kind = TK_Ident;
-          tokens[tok_index].literal = p;
           if (is_explicit_sign(*p)) {
+            const char *tok_literal = p;
             ++p;
             if (*p && *p != '.') {
               /* <sign_subsequent> <subsequent>* */
@@ -246,10 +260,13 @@ static int tokenize(const char *program) {
                 ++p;
               }
             }
-            tokens[tok_index].tok_len = (int)(p - tokens[tok_index].literal);
+            vector_append(tokens, make_token(TK_Ident, tok_literal,
+                                             (int)(p - tok_literal)));
           } else {
             /* . <dot_subsequent> <subsequent>* */
+            const char *tok_literal = p;
             if (*p && *p == '.') {
+
               /* Consume '.' */
               ++p;
               /* Consume dot subsequent. */
@@ -269,20 +286,21 @@ static int tokenize(const char *program) {
               fprintf(stdout, "Error\n");
               exit(1);
             }
-            tokens[tok_index].tok_len = (int)(p - tokens[tok_index].literal);
+            vector_append(tokens, make_token(TK_Ident, tok_literal,
+                                             (int)(p - tok_literal)));
           }
         }
-        ++tok_index;
         break;
       } else {
         /* Returns how many tokens we have consumed. */
-        return tok_index;
+        return tokens;
       }
+    } /* default: */
     }
   }
 
   /* Returns how many tokens we have consumed. */
-  return tok_index;
+  return tokens;
 }
 
 /*
@@ -310,6 +328,7 @@ static int rocket_main(int argc, char **argv) {
   char *line = NULL;
 
   rl_initialize();
+
   for (;;) {
     char *stripped;
     line = readline(PROMPT_STYLE);
@@ -319,14 +338,20 @@ static int rocket_main(int argc, char **argv) {
     }
     stripped = stripwhite(line);
     if (stripped[0]) {
-      int consumed;
-      fprintf(stdout, "%s\n", stripped);
-      consumed = tokenize(stripped);
-      for (int I = 0; I < consumed; ++I) {
-        for (int l = 0; l < tokens[I].tok_len; ++l)
-          fprintf(stdout, "%c", tokens[I].literal[l]);
-        fprintf(stdout, " (%d)\n", tokens[I].kind);
+      Vector *tokens = tokenize(stripped);
+      int num_tokens = vector_len(tokens);
+      for (int I = 0; I < num_tokens; ++I) {
+        Token *tok = vector_get(tokens, I);
+        for (int l = 0; l < tok->tok_len; ++l)
+          fprintf(stdout, "%c", tok->literal[l]);
+        fprintf(stdout, " -- %s\n", token_kind_to_string(tok->kind));
       }
+
+      /* Clean up. */
+      for (int i = 0; i < num_tokens; ++i) {
+        free(vector_get(tokens, i));
+      }
+      free_vector(tokens);
     }
 
     free(line);
