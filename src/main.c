@@ -8,46 +8,77 @@
 #include <readline/history.h>
 #include <readline/readline.h>
 
+#include "tokenizer.h"
 #include "vector.h"
 
 #define PROMPT_STYLE "> "
 
-typedef enum TokenKind {
-  TK_Unknown,
-  /* '(' */
-  TK_LParen,
-  /* ')' */
-  TK_RParen,
-  /* Identifier */
-  TK_Ident,
-  /* '\'' */
-  TK_Quote,
-  /* '`' */
-  TK_Backquote,
-  TK_Boolean,
-  TK_Number,
-} TokenKind;
+typedef enum {
+  AK_Boolean,
+  AK_Number,
+} AstKind;
 
-typedef struct Token {
-  TokenKind kind;
+typedef union {
+  bool boolean;
+  double number;
+} AstVal;
 
-  /* Location of the token. */
-  char *file;
-  int line;
-  int column;
+typedef struct AstNode {
+  AstKind kind;
+  AstVal val;
+} AstNode;
 
-  /* Literal representation. */
-  const char *literal;
-  /* Length of the literal string. */
-  int tok_len;
-} Token;
+static AstNode *make_ast_node(AstKind kind, AstVal val) {
+  AstNode *node = (AstNode *)malloc(sizeof(AstNode));
+  node->kind = kind;
+  node->val = val;
+  return node;
+}
 
-Token *make_token(TokenKind kind, const char *literal, int tok_len) {
-  Token *token = (Token *)malloc(sizeof(Token));
-  token->kind = kind;
-  token->literal = literal;
-  token->tok_len = tok_len;
-  return token;
+static AstNode *try_parse_number(Token *tok) {
+  AstVal val;
+  assert(tok->kind == TK_Number);
+  val.number = strtod(tok->literal, NULL);
+  return make_ast_node(AK_Number, val);
+}
+
+static void free_ast_node(AstNode *ast) {
+}
+
+AstNode *parse_object_recursive(Vector *tokens) {
+  int num_tokens = vector_len(tokens);
+  for (int i = 0; i < num_tokens; ++i) {
+    Token *tok = vector_get(tokens, i);
+    switch (tok->kind) {
+    case TK_Number: {
+      return try_parse_number(tok);
+    }
+    default:
+      fprintf(stderr, "parse_object_recursive: not implemented!\n");
+      exit(1);
+    }
+  }
+  assert(0);
+}
+
+void dump_ast(AstNode *ast) {
+  if (ast) {
+    switch (ast->kind) {
+    case AK_Boolean: {
+      fprintf(stdout, "<bool>: %s\n", ast->val.boolean ? "#t" : "#f");
+      break;
+    }
+    case AK_Number: {
+      fprintf(stdout, "<number>: %.2f\n", ast->val.number);
+      break;
+    }
+    default:
+      fprintf(stderr, "dump_ast: not implemented!\n");
+      exit(1);
+    }
+  } else {
+    fprintf(stdout, "<nil>\n");
+  }
 }
 
 static const char *token_kind_to_string(TokenKind kind) {
@@ -58,6 +89,8 @@ static const char *token_kind_to_string(TokenKind kind) {
     return "LParen";
   case TK_RParen:
     return "RParen";
+  case TK_Dot:
+    return "Dot";
   case TK_Ident:
     return "Ident";
   case TK_Quote:
@@ -71,236 +104,6 @@ static const char *token_kind_to_string(TokenKind kind) {
   default:
     return "Unknown Token";
   }
-}
-
-static bool is_special_initial(char c) {
-  /*
-   * <special_initial> -> ! ∣ $ ∣ % ∣ & ∣ * ∣ / ∣ : ∣ < ∣ = ∣ > ∣ ? ∣ @ ∣
-   *                      ^ ∣ _ ∣ ~
-   */
-  return c == '!' || c == '$' || c == '%' || c == '&' || c == '*' || c == '/' ||
-         c == ':' || c == '<' || c == '=' || c == '>' || c == '?' || c == '@' ||
-         c == '^' || c == '_' || c == '~';
-}
-
-static bool is_explicit_sign(char c) {
-  /*
-   * <explicit_sign> -> + ∣ -
-   */
-  return c == '+' || c == '-';
-}
-
-static bool is_special_subsequent(char c) {
-  /*
-   * <special_subsequent> -> <explicit_sign> ∣ . ∣ @
-   * <explicit_sign> -> + ∣ -
-   */
-  return is_explicit_sign(c) || c == '.' || c == '@';
-}
-
-static bool is_initial(char c) {
-  /* <initial> -> <letter> | <special_initial> */
-  return isalpha(c) || is_special_initial(c);
-}
-
-static bool is_sign_subsequent(char c) {
-  /* <sign_subsequent> -> <initial> ∣ <explicit_sign> ∣ @ */
-  return is_initial(c) || is_explicit_sign(c) || c == '@';
-}
-
-static bool is_dot_subsequent(char c) {
-  /* <dot_subsequent> -> <sign_subsequent> ∣ . */
-  return is_sign_subsequent(c) || c == '.';
-}
-
-static bool is_subsequent(char c) {
-  /* <subsequent> -> <initial> ∣ <digit>
-   *              ∣ <special_subsequent>
-   */
-  return is_initial(c) || isdigit(c) || is_special_subsequent(c);
-}
-
-/*
- * Tokenize the given program and returns the number of tokens.
- */
-static Vector *tokenize(const char *program) {
-  /* Program must be a null terminated string. */
-  const char *p = program;
-  Vector *tokens = make_vector();
-  assert(program);
-
-  while (*p) {
-    /* Consume whitespaces. */
-    while (*p && whitespace(*p)) {
-      ++p;
-    }
-
-    /* No more tokens? Return directly. */
-    if (!p)
-      return tokens;
-
-    switch (*p) {
-    case '(': {
-      vector_append(tokens, make_token(TK_LParen, p, 1));
-      ++p;
-      break;
-    }
-    case ')': {
-      vector_append(tokens, make_token(TK_RParen, p, 1));
-      ++p;
-      break;
-    }
-    case '\'': {
-      vector_append(tokens, make_token(TK_Quote, p, 1));
-      ++p;
-      break;
-    }
-    case '`': {
-      vector_append(tokens, make_token(TK_Backquote, p, 1));
-      ++p;
-      break;
-    }
-    case '#': {
-      const char *endp = p;
-      int tok_len;
-      /* Looking ahead. */
-      while (*endp && !whitespace(*endp)) {
-        ++endp;
-      }
-      tok_len = (int)(endp - p);
-      /* FIXME: Can we simplify??? */
-      if ((tok_len == 5 && strncmp(p, "#true", 5) == 0) ||
-          (tok_len == 2 && strncmp(p, "#t", 2) == 0)) {
-        vector_append(tokens, make_token(TK_Boolean, p, tok_len));
-        p = endp;
-      } else if ((tok_len == 6 && strncmp(p, "#false", 6) == 0) ||
-                 (tok_len == 2 && strncmp(p, "#f", 2) == 0)) {
-        vector_append(tokens, make_token(TK_Boolean, p, tok_len));
-        p = endp;
-      } else {
-        /* Raise Error. */
-        fprintf(stdout, "Error\n");
-        exit(1);
-      }
-      break;
-    }
-    default: {
-      if (isdigit(*p)) {
-        char *endp;
-        strtod(p, &endp);
-
-        vector_append(tokens, make_token(TK_Number, p, (int)(endp - p)));
-
-        p = endp;
-        break;
-      } else if (/* <initial> <subsequent>* */ (is_initial(*p)) ||
-                 /* TODO: <vertical_line> <symbol_element>* <vertical_line> */
-                 /* <peculiar_identifier> */ (is_explicit_sign(*p) ||
-                                              *p == '.')) {
-        /*
-         * <identifier> -> <initial> <subsequent>*
-         *              | <vertical_line> <symbol_element>* <vertical_line>
-         *              | <peculiar_identifier>
-         * <initial> -> <letter> | <special_initial>
-         * <letter> -> a | b | c ... | z | A | B | C ... | Z
-         * <special_initial> -> ! ∣ $ ∣ % ∣ & ∣ * ∣ / ∣ : ∣ < ∣ = ∣ > ∣ ? ∣ @ ∣
-         *                      ^ ∣ _ ∣ ~
-         * <subsequent> -> <initial> ∣ <digit> | <special_subsequent>
-         * <special_subsequent> -> <explicit_sign> ∣ . ∣ @
-         * <explicit_sign> -> + ∣ -
-         * <peculiar_identifier> -> <explicit_sign>
-         *                    ∣ <explicit_sign> <sign_subsequent> <subsequent>*
-         *                    ∣ <explicit_sign> . <dot_subsequent> <subsequent>*
-         *                    ∣ . <dot_subsequent> <subsequent>*
-         * <sign_subsequent> -> <initial> ∣ <explicit_sign> ∣ @
-         */
-        if (is_initial(*p)) {
-          /* Case: <initial> <subsequent>* */
-          const char *tok_literal = p;
-          /* Consume initial. */
-          ++p;
-          /* Consume subsequent. */
-          while (*p && is_subsequent(*p)) {
-            ++p;
-          }
-
-          vector_append(tokens, make_token(TK_Ident, tok_literal,
-                                           (int)(p - tok_literal)));
-        } else if (is_explicit_sign(*p) || *p == '.') {
-          /* Case: <peculiar_identifier> */
-          if (is_explicit_sign(*p)) {
-            const char *tok_literal = p;
-            ++p;
-            if (*p && *p != '.') {
-              /* <sign_subsequent> <subsequent>* */
-              if (*p && (is_sign_subsequent(*p))) {
-                ++p;
-              } else {
-                /* Raise error. */
-                fprintf(stdout, "Error\n");
-                exit(1);
-              }
-              /* Consume subsequent. */
-              while (*p && is_subsequent(*p)) {
-                ++p;
-              }
-            } else if (*p && *p == '.') {
-              /* . <dot_subsequent> <subsequent>* */
-              /* Consume '.' */
-              ++p;
-              /* Consume dot subsequent. */
-              if (*p && is_dot_subsequent(*p)) {
-                ++p;
-              } else {
-                /* Raise error. */
-                fprintf(stdout, "Error\n");
-              }
-              /* Consume subsequent. */
-              while (*p && is_subsequent(*p)) {
-                ++p;
-              }
-            }
-            vector_append(tokens, make_token(TK_Ident, tok_literal,
-                                             (int)(p - tok_literal)));
-          } else {
-            /* . <dot_subsequent> <subsequent>* */
-            const char *tok_literal = p;
-            if (*p && *p == '.') {
-
-              /* Consume '.' */
-              ++p;
-              /* Consume dot subsequent. */
-              if (*p && is_dot_subsequent(*p)) {
-                ++p;
-              } else {
-                /* Raise error. */
-                fprintf(stdout, "Error\n");
-                exit(1);
-              }
-              /* Consume subsequent. */
-              while (*p && is_subsequent(*p)) {
-                ++p;
-              }
-            } else {
-              /* Raise error. */
-              fprintf(stdout, "Error\n");
-              exit(1);
-            }
-            vector_append(tokens, make_token(TK_Ident, tok_literal,
-                                             (int)(p - tok_literal)));
-          }
-        }
-        break;
-      } else {
-        /* Returns how many tokens we have consumed. */
-        return tokens;
-      }
-    } /* default: */
-    }
-  }
-
-  /* Returns how many tokens we have consumed. */
-  return tokens;
 }
 
 /*
@@ -340,12 +143,17 @@ static int rocket_main(int argc, char **argv) {
     if (stripped[0]) {
       Vector *tokens = tokenize(stripped);
       int num_tokens = vector_len(tokens);
+      AstNode *ast = NULL;
       for (int i = 0; i < num_tokens; ++i) {
         Token *tok = vector_get(tokens, i);
         for (int l = 0; l < tok->tok_len; ++l)
           fprintf(stdout, "%c", tok->literal[l]);
         fprintf(stdout, " -- %s\n", token_kind_to_string(tok->kind));
       }
+
+      ast = parse_object_recursive(tokens);
+
+      dump_ast(ast);
 
       /* Clean up. */
       for (int i = 0; i < num_tokens; ++i) {
