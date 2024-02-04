@@ -16,6 +16,10 @@ int vector_len(Vector *vec) {
   return vec->len;
 }
 
+void **vector_data(Vector *vec) {
+  return vec->items;
+}
+
 void *vector_get(Vector *vec, int index) {
   if (index < 0 || index >= vec->len)
     return NULL;

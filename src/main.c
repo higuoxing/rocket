@@ -340,8 +340,8 @@ static int rocket_main(int argc, char **argv) {
     if (stripped[0]) {
       Vector *tokens = tokenize(stripped);
       int num_tokens = vector_len(tokens);
-      for (int I = 0; I < num_tokens; ++I) {
-        Token *tok = vector_get(tokens, I);
+      for (int i = 0; i < num_tokens; ++i) {
+        Token *tok = vector_get(tokens, i);
         for (int l = 0; l < tok->tok_len; ++l)
           fprintf(stdout, "%c", tok->literal[l]);
         fprintf(stdout, " -- %s\n", token_kind_to_string(tok->kind));

@@ -14,6 +14,7 @@ typedef struct Vector {
 
 extern Vector *make_vector(void);
 extern int vector_len(Vector *vec);
+extern void **vector_data(Vector *vec);
 extern void *vector_get(Vector *vec, int index);
 extern bool vector_set(Vector *vec, int index, void *item);
 extern void vector_append(Vector *vec, void *item);
