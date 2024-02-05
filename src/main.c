@@ -7,6 +7,7 @@
 #include <readline/chardefs.h>
 #include <readline/history.h>
 #include <readline/readline.h>
+#include <string.h>
 
 #include "tokenizer.h"
 #include "vector.h"
@@ -16,11 +17,33 @@
 typedef enum {
   AK_Boolean,
   AK_Number,
+  AK_Cons,
 } AstKind;
 
+typedef struct Cons {
+  void *car;
+  void *cdr;
+} Cons;
+
+Cons *make_cons(void *car, void *cdr) {
+  Cons *cons = (Cons *)malloc(sizeof(Cons));
+  cons->car = car;
+  cons->cdr = cdr;
+  return cons;
+}
+
+void cons_append(Cons *head, void *tail) {
+  assert(head);
+  head->cdr = tail;
+}
+
 typedef union {
+  /* AK_Boolean */
   bool boolean;
+  /* AK_Number */
   double number;
+  /* AK_Cons */
+  Cons cons;
 } AstVal;
 
 typedef struct AstNode {
@@ -35,6 +58,13 @@ static AstNode *make_ast_node(AstKind kind, AstVal val) {
   return node;
 }
 
+static AstNode *try_parse_boolean(Token *tok) {
+  AstVal val;
+  assert(tok->kind == TK_Boolean);
+  val.boolean = (strncmp(tok->literal, "#t", 2) == 0 ? true : false);
+  return make_ast_node(AK_Boolean, val);
+}
+
 static AstNode *try_parse_number(Token *tok) {
   AstVal val;
   assert(tok->kind == TK_Number);
@@ -42,23 +72,40 @@ static AstNode *try_parse_number(Token *tok) {
   return make_ast_node(AK_Number, val);
 }
 
-static void free_ast_node(AstNode *ast) {
+static void free_ast_node(AstNode *node) {
+  if (node) {
+    switch (node->kind) {
+    case AK_Boolean:
+    case AK_Number: {
+      free(node);
+      break;
+    }
+    default: {
+      fprintf(stderr, "%s: not implemented!\n", __FUNCTION__);
+      exit(1);
+    }
+    }
+  }
 }
 
-AstNode *parse_object_recursive(Vector *tokens) {
-  int num_tokens = vector_len(tokens);
-  for (int i = 0; i < num_tokens; ++i) {
-    Token *tok = vector_get(tokens, i);
+AstNode *parse_program(Token **tokens) {
+  int i = 0;
+  Cons *head;
+  while (tokens[i]->kind != TK_EOF) {
+    Token *tok = (Token *)tokens[0];
     switch (tok->kind) {
+    case TK_Boolean: {
+      return try_parse_boolean(tok);
+    }
     case TK_Number: {
       return try_parse_number(tok);
     }
     default:
-      fprintf(stderr, "parse_object_recursive: not implemented!\n");
+      fprintf(stderr, "%s: not implemented!\n", __FUNCTION__);
       exit(1);
     }
   }
-  assert(0);
+  return NULL;
 }
 
 void dump_ast(AstNode *ast) {
@@ -73,7 +120,7 @@ void dump_ast(AstNode *ast) {
       break;
     }
     default:
-      fprintf(stderr, "dump_ast: not implemented!\n");
+      fprintf(stderr, "%s: not implemented!\n", __FUNCTION__);
       exit(1);
     }
   } else {
@@ -101,6 +148,8 @@ static const char *token_kind_to_string(TokenKind kind) {
     return "Boolean";
   case TK_Number:
     return "Number";
+  case TK_EOF:
+    return "EOF";
   default:
     return "Unknown Token";
   }
@@ -142,8 +191,11 @@ static int rocket_main(int argc, char **argv) {
     stripped = stripwhite(line);
     if (stripped[0]) {
       Vector *tokens = tokenize(stripped);
-      int num_tokens = vector_len(tokens);
+      int num_tokens;
       AstNode *ast = NULL;
+
+      vector_append(tokens, make_token(TK_EOF, "", 0));
+      num_tokens = vector_len(tokens);
       for (int i = 0; i < num_tokens; ++i) {
         Token *tok = vector_get(tokens, i);
         for (int l = 0; l < tok->tok_len; ++l)
@@ -151,7 +203,7 @@ static int rocket_main(int argc, char **argv) {
         fprintf(stdout, " -- %s\n", token_kind_to_string(tok->kind));
       }
 
-      ast = parse_object_recursive(tokens);
+      ast = parse_program((Token **)vector_data(tokens));
 
       dump_ast(ast);
 

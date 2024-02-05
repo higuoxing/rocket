@@ -93,7 +93,7 @@ Vector *tokenize(const char *program) {
         p = endp;
       } else {
         /* Raise Error. */
-        fprintf(stdout, "Error\n");
+        fprintf(stdout, "Error: %s:%d\n", __FILE__, __LINE__);
         exit(1);
       }
       break;
@@ -151,7 +151,7 @@ Vector *tokenize(const char *program) {
                 ++p;
               } else {
                 /* Raise error. */
-                fprintf(stdout, "Error\n");
+                fprintf(stdout, "Error: %s:%d\n", __FILE__, __LINE__);
                 exit(1);
               }
               /* Consume subsequent. */
@@ -167,7 +167,7 @@ Vector *tokenize(const char *program) {
                 ++p;
               } else {
                 /* Raise error. */
-                fprintf(stdout, "Error\n");
+                fprintf(stdout, "Error: %s:%d\n", __FILE__, __LINE__);
               }
               /* Consume subsequent. */
               while (*p && is_subsequent(*p)) {
@@ -188,7 +188,7 @@ Vector *tokenize(const char *program) {
                 ++p;
               } else {
                 /* Raise error. */
-                fprintf(stdout, "Error\n");
+                fprintf(stdout, "Error: %s:%d\n", __FILE__, __LINE__);
                 exit(1);
               }
               /* Consume subsequent. */
@@ -197,7 +197,7 @@ Vector *tokenize(const char *program) {
               }
             } else {
               /* Raise error. */
-              fprintf(stdout, "Error\n");
+              fprintf(stdout, "Error: %s:%d\n", __FILE__, __LINE__);
               exit(1);
             }
             vector_append(tokens, make_token(TK_Ident, tok_literal,

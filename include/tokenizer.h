@@ -22,6 +22,9 @@ typedef enum TokenKind {
   TK_Backquote,
   TK_Boolean,
   TK_Number,
+
+  /* EOF */
+  TK_EOF,
 } TokenKind;
 
 typedef struct Token {
