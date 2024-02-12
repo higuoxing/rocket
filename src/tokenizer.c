@@ -4,6 +4,7 @@
 #include <readline/chardefs.h>
 
 #include "tokenizer.h"
+#include "vector.h"
 
 static bool is_special_initial(char c);
 static bool is_explicit_sign(char c);
@@ -45,8 +46,9 @@ Vector *tokenize(const char *program) {
     }
 
     /* No more tokens? Return directly. */
-    if (!p)
-      return tokens;
+    if (!p) {
+      goto out;
+    }
 
     switch (*p) {
     case '(': {
@@ -93,8 +95,7 @@ Vector *tokenize(const char *program) {
         p = endp;
       } else {
         /* Raise Error. */
-        fprintf(stdout, "Error: %s:%d\n", __FILE__, __LINE__);
-        exit(1);
+        goto fail;
       }
       break;
     }
@@ -151,8 +152,7 @@ Vector *tokenize(const char *program) {
                 ++p;
               } else {
                 /* Raise error. */
-                fprintf(stdout, "Error: %s:%d\n", __FILE__, __LINE__);
-                exit(1);
+                goto fail;
               }
               /* Consume subsequent. */
               while (*p && is_subsequent(*p)) {
@@ -167,7 +167,7 @@ Vector *tokenize(const char *program) {
                 ++p;
               } else {
                 /* Raise error. */
-                fprintf(stdout, "Error: %s:%d\n", __FILE__, __LINE__);
+                goto fail;
               }
               /* Consume subsequent. */
               while (*p && is_subsequent(*p)) {
@@ -188,8 +188,7 @@ Vector *tokenize(const char *program) {
                 ++p;
               } else {
                 /* Raise error. */
-                fprintf(stdout, "Error: %s:%d\n", __FILE__, __LINE__);
-                exit(1);
+                goto fail;
               }
               /* Consume subsequent. */
               while (*p && is_subsequent(*p)) {
@@ -197,8 +196,7 @@ Vector *tokenize(const char *program) {
               }
             } else {
               /* Raise error. */
-              fprintf(stdout, "Error: %s:%d\n", __FILE__, __LINE__);
-              exit(1);
+              goto fail;
             }
             vector_append(tokens, make_token(TK_Ident, tok_literal,
                                              (int)(p - tok_literal)));
@@ -206,15 +204,19 @@ Vector *tokenize(const char *program) {
         }
         break;
       } else {
-        /* Returns how many tokens we have consumed. */
-        return tokens;
+        goto out;
       }
     } /* default: */
     }
   }
 
-  /* Returns how many tokens we have consumed. */
+out:
+  vector_append(tokens, make_token(TK_EOF, "", 0));
   return tokens;
+
+fail:
+  fprintf(stdout, "Error: %s:%d\n", __FILE__, __LINE__);
+  exit(1);
 }
 
 static bool is_special_initial(char c) {

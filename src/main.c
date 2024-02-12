@@ -3,11 +3,11 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <readline/chardefs.h>
 #include <readline/history.h>
 #include <readline/readline.h>
-#include <string.h>
 
 #include "tokenizer.h"
 #include "vector.h"
@@ -191,11 +191,8 @@ static int rocket_main(int argc, char **argv) {
     stripped = stripwhite(line);
     if (stripped[0]) {
       Vector *tokens = tokenize(stripped);
-      int num_tokens;
+      int num_tokens = vector_len(tokens);
       AstNode *ast = NULL;
-
-      vector_append(tokens, make_token(TK_EOF, "", 0));
-      num_tokens = vector_len(tokens);
       for (int i = 0; i < num_tokens; ++i) {
         Token *tok = vector_get(tokens, i);
         for (int l = 0; l < tok->tok_len; ++l)
