@@ -37,78 +37,57 @@ void cons_append(Cons *head, void *tail) {
   head->cdr = tail;
 }
 
-typedef union {
+Cons *list_reverse(Cons *list) {
+  Cons *tail = NULL;
+  if (!list)
+    return NULL;
+
+  while (list) {
+    Cons *curr = list;
+    tail = make_cons(curr->car, tail);
+    list = curr->cdr;
+    free(curr);
+  }
+
+  return tail;
+}
+
+typedef union AstVal {
   /* AK_Boolean */
   bool boolean;
   /* AK_Number */
   double number;
   /* AK_Cons */
-  Cons cons;
+  Cons *cons;
 } AstVal;
 
 typedef struct AstNode {
   AstKind kind;
   AstVal val;
-} AstNode;
+} Ast;
 
-static AstNode *make_ast_node(AstKind kind, AstVal val) {
-  AstNode *node = (AstNode *)malloc(sizeof(AstNode));
+static Ast *make_ast_node(AstKind kind, AstVal val) {
+  Ast *node = (Ast *)malloc(sizeof(Ast));
   node->kind = kind;
   node->val = val;
   return node;
 }
 
-static AstNode *try_parse_boolean(Token *tok) {
+static Ast *try_parse_boolean(Token *tok) {
   AstVal val;
   assert(tok->kind == TK_Boolean);
   val.boolean = (strncmp(tok->literal, "#t", 2) == 0 ? true : false);
   return make_ast_node(AK_Boolean, val);
 }
 
-static AstNode *try_parse_number(Token *tok) {
+static Ast *try_parse_number(Token *tok) {
   AstVal val;
   assert(tok->kind == TK_Number);
   val.number = strtod(tok->literal, NULL);
   return make_ast_node(AK_Number, val);
 }
 
-static void free_ast_node(AstNode *node) {
-  if (node) {
-    switch (node->kind) {
-    case AK_Boolean:
-    case AK_Number: {
-      free(node);
-      break;
-    }
-    default: {
-      fprintf(stderr, "%s: not implemented!\n", __FUNCTION__);
-      exit(1);
-    }
-    }
-  }
-}
-
-AstNode *parse_program(Token **tokens) {
-  int i = 0;
-  Cons *head;
-  while (tokens[i]->kind != TK_EOF) {
-    Token *tok = (Token *)tokens[0];
-    switch (tok->kind) {
-    case TK_Boolean: {
-      return try_parse_boolean(tok);
-    }
-    case TK_Number: {
-      return try_parse_number(tok);
-    }
-    default:
-      fprintf(stderr, "%s: not implemented!\n", __FUNCTION__);
-      exit(1);
-    }
-  }
-  return NULL;
-}
-
-void dump_ast(AstNode *ast) {
+static void dump_ast(Ast *ast) {
   if (ast) {
     switch (ast->kind) {
     case AK_Boolean: {
@@ -119,8 +98,18 @@ void dump_ast(AstNode *ast) {
       fprintf(stdout, "<number>: %.2f\n", ast->val.number);
       break;
     }
+    case AK_Cons: {
+      Cons *cons = ast->val.cons;
+
+      while (cons) {
+        dump_ast(cons->car);
+        cons = cons->cdr;
+      }
+      break;
+    }
     default:
-      fprintf(stderr, "%s: not implemented!\n", __FUNCTION__);
+      fprintf(stderr, "%s: AstKind (%d) not implemented!\n", __FUNCTION__,
+              ast->kind);
       exit(1);
     }
   } else {
@@ -128,10 +117,59 @@ void dump_ast(AstNode *ast) {
   }
 }
 
+static Ast *parse_object(Token **tokens, int *cursor) {
+  switch (tokens[*cursor]->kind) {
+  case TK_Boolean: {
+    Ast *bool_ast = try_parse_boolean(tokens[*cursor]);
+    *cursor += 1;
+    return bool_ast;
+  }
+  case TK_Number: {
+    Ast *number_ast = try_parse_number(tokens[*cursor]);
+    *cursor += 1;
+    return number_ast;
+  }
+  case TK_LParen: {
+    Cons *list = NULL;
+    AstVal val;
+    /* Consume '(' */
+    *cursor += 1;
+
+    /* Parse until ')' */
+    while (tokens[*cursor]->kind != TK_RParen) {
+      if (tokens[*cursor]->kind == TK_EOF) {
+        /* Need more tokens. */
+        fprintf(stderr, "%s: Expected more tokens.", __FUNCTION__);
+        exit(1);
+      }
+
+      list = make_cons(parse_object(tokens, cursor), list);
+    }
+
+    /* Consume ')' */
+    assert(tokens[*cursor]->kind == TK_RParen);
+    *cursor += 1;
+
+    val.cons = list_reverse(list);
+    return make_ast_node(AK_Cons, val);
+  }
+  default: {
+    fprintf(stderr, "%s: Unexpected token kind (%d)", __FUNCTION__,
+            tokens[*cursor]->kind);
+    exit(1);
+  }
+  }
+  return NULL;
+}
+
+Ast *parse_program(Token **tokens) {
+  int cursor = 0;
+  dump_ast(parse_object(tokens, &cursor));
+  return NULL;
+}
+
 static const char *token_kind_to_string(TokenKind kind) {
   switch (kind) {
-  case TK_Unknown:
-    return "Unknown";
   case TK_LParen:
     return "LParen";
   case TK_RParen:
@@ -159,7 +197,7 @@ static const char *token_kind_to_string(TokenKind kind) {
  * Strip whitespace from the start and end of str.  Return a pointer
  * into str.
  */
-char *stripwhite(char *str) {
+static char *stripwhite(char *str) {
   char *s, *t;
 
   for (s = str; whitespace(*s); s++)
@@ -182,23 +220,15 @@ static int rocket_main(int argc, char **argv) {
   rl_initialize();
 
   for (;;) {
-    char *stripped;
     line = readline(PROMPT_STYLE);
     if (!line) {
       /* Handle ctrl-d */
       break;
     }
-    stripped = stripwhite(line);
-    if (stripped[0]) {
-      Vector *tokens = tokenize(stripped);
+    if (line[0]) {
+      Vector *tokens = tokenize(line, "<stdin>");
       int num_tokens = vector_len(tokens);
-      AstNode *ast = NULL;
-      for (int i = 0; i < num_tokens; ++i) {
-        Token *tok = vector_get(tokens, i);
-        for (int l = 0; l < tok->tok_len; ++l)
-          fprintf(stdout, "%c", tok->literal[l]);
-        fprintf(stdout, " -- %s\n", token_kind_to_string(tok->kind));
-      }
+      Ast *ast = NULL;
 
       ast = parse_program((Token **)vector_data(tokens));
 
@@ -215,7 +245,7 @@ static int rocket_main(int argc, char **argv) {
     line = NULL;
   }
 
-  exit(0);
+  return 0;
 }
 
 int main(int argc, char **argv) {

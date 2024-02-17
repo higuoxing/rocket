@@ -8,7 +8,6 @@
 #include "vector.h"
 
 typedef enum TokenKind {
-  TK_Unknown,
   /* '(' */
   TK_LParen,
   /* ')' */
@@ -27,22 +26,27 @@ typedef enum TokenKind {
   TK_EOF,
 } TokenKind;
 
+typedef struct TokenLoc {
+  const char *file;
+  int line;
+  int column;
+} TokenLoc;
+
 typedef struct Token {
   TokenKind kind;
 
   /* Location of the token. */
-  char *file;
-  int line;
-  int column;
+  TokenLoc loc;
 
   /* Literal representation. */
   const char *literal;
   /* Length of the literal string. */
-  int tok_len;
+  int literal_len;
 } Token;
 
-extern Token *make_token(TokenKind kind, const char *literal, int tok_len);
-extern Vector *tokenize(const char *program);
+extern Token *make_token(TokenKind kind, TokenLoc loc, const char *literal,
+                         int tok_len);
+extern Vector *tokenize(const char *program, const char *filename);
 extern TokenKind token_kind(Token *tok);
 extern int token_len(Token *tok);
 

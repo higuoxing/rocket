@@ -14,11 +14,13 @@ static bool is_sign_subsequent(char c);
 static bool is_dot_subsequent(char c);
 static bool is_subsequent(char c);
 
-Token *make_token(TokenKind kind, const char *literal, int tok_len) {
+Token *make_token(TokenKind kind, TokenLoc loc, const char *literal,
+                  int tok_len) {
   Token *token = (Token *)malloc(sizeof(Token));
   token->kind = kind;
+  token->loc = loc;
   token->literal = literal;
-  token->tok_len = tok_len;
+  token->literal_len = tok_len;
   return token;
 }
 
@@ -27,20 +29,22 @@ TokenKind token_kind(Token *tok) {
 }
 
 int token_len(Token *tok) {
-  return tok->tok_len;
+  return tok->literal_len;
 }
 
 /*
  * Tokenize the given program and returns the number of tokens.
  */
-Vector *tokenize(const char *program) {
+Vector *tokenize(const char *program, const char *filename) {
   /* Program must be a null terminated string. */
   const char *p = program;
   Vector *tokens = make_vector();
+  int line = 1;
+  int column = 1;
   assert(program);
 
   while (*p) {
-    /* Consume whitespaces. */
+    /* Consume whitespaces and newlines. */
     while (*p && whitespace(*p)) {
       ++p;
     }
@@ -52,27 +56,32 @@ Vector *tokenize(const char *program) {
 
     switch (*p) {
     case '(': {
-      vector_append(tokens, make_token(TK_LParen, p, 1));
+      TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+      vector_append(tokens, make_token(TK_LParen, loc, p, 1));
       ++p;
       break;
     }
     case ')': {
-      vector_append(tokens, make_token(TK_RParen, p, 1));
+      TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+      vector_append(tokens, make_token(TK_RParen, loc, p, 1));
       ++p;
       break;
     }
     case '.': {
-      vector_append(tokens, make_token(TK_Dot, p, 1));
+      TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+      vector_append(tokens, make_token(TK_Dot, loc, p, 1));
       ++p;
       break;
     }
     case '\'': {
-      vector_append(tokens, make_token(TK_Quote, p, 1));
+      TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+      vector_append(tokens, make_token(TK_Quote, loc, p, 1));
       ++p;
       break;
     }
     case '`': {
-      vector_append(tokens, make_token(TK_Backquote, p, 1));
+      TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+      vector_append(tokens, make_token(TK_Backquote, loc, p, 1));
       ++p;
       break;
     }
@@ -84,14 +93,16 @@ Vector *tokenize(const char *program) {
         ++endp;
       }
       tok_len = (int)(endp - p);
-      /* FIXME: Can we simplify??? */
+      /* FIXME: Can we simplify the logic? */
       if ((tok_len == 5 && strncmp(p, "#true", 5) == 0) ||
           (tok_len == 2 && strncmp(p, "#t", 2) == 0)) {
-        vector_append(tokens, make_token(TK_Boolean, p, tok_len));
+        TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+        vector_append(tokens, make_token(TK_Boolean, loc, p, tok_len));
         p = endp;
       } else if ((tok_len == 6 && strncmp(p, "#false", 6) == 0) ||
                  (tok_len == 2 && strncmp(p, "#f", 2) == 0)) {
-        vector_append(tokens, make_token(TK_Boolean, p, tok_len));
+        TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+        vector_append(tokens, make_token(TK_Boolean, loc, p, tok_len));
         p = endp;
       } else {
         /* Raise Error. */
@@ -103,8 +114,8 @@ Vector *tokenize(const char *program) {
       if (isdigit(*p)) {
         char *endp;
         strtod(p, &endp);
-
-        vector_append(tokens, make_token(TK_Number, p, (int)(endp - p)));
+        TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+        vector_append(tokens, make_token(TK_Number, loc, p, (int)(endp - p)));
 
         p = endp;
         break;
@@ -138,8 +149,8 @@ Vector *tokenize(const char *program) {
           while (*p && is_subsequent(*p)) {
             ++p;
           }
-
-          vector_append(tokens, make_token(TK_Ident, tok_literal,
+          TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+          vector_append(tokens, make_token(TK_Ident, loc, tok_literal,
                                            (int)(p - tok_literal)));
         } else if (is_explicit_sign(*p) || *p == '.') {
           /* Case: <peculiar_identifier> */
@@ -174,7 +185,8 @@ Vector *tokenize(const char *program) {
                 ++p;
               }
             }
-            vector_append(tokens, make_token(TK_Ident, tok_literal,
+            TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+            vector_append(tokens, make_token(TK_Ident, loc, tok_literal,
                                              (int)(p - tok_literal)));
           } else {
             /* . <dot_subsequent> <subsequent>* */
@@ -198,7 +210,8 @@ Vector *tokenize(const char *program) {
               /* Raise error. */
               goto fail;
             }
-            vector_append(tokens, make_token(TK_Ident, tok_literal,
+            TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+            vector_append(tokens, make_token(TK_Ident, loc, tok_literal,
                                              (int)(p - tok_literal)));
           }
         }
@@ -210,13 +223,16 @@ Vector *tokenize(const char *program) {
     }
   }
 
-out:
-  vector_append(tokens, make_token(TK_EOF, "", 0));
+out : {
+  TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+  vector_append(tokens, make_token(TK_EOF, loc, "", 0));
   return tokens;
+}
 
-fail:
+fail : {
   fprintf(stdout, "Error: %s:%d\n", __FILE__, __LINE__);
   exit(1);
+}
 }
 
 static bool is_special_initial(char c) {

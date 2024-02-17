@@ -5,7 +5,12 @@
 
 int main() {
   {
-    Vector *tokens = tokenize("(cons (cons 1 nil))");
+    Vector *tokens = tokenize("  \n\n", "");
+    assert(((Token *)vector_get(tokens, 0))->kind == TK_EOF);
+  }
+
+  {
+    Vector *tokens = tokenize("(cons (cons 1 nil))", "");
     assert(((Token *)vector_get(tokens, 0))->kind == TK_LParen);
     assert(((Token *)vector_get(tokens, 1))->kind == TK_Ident);
     assert(((Token *)vector_get(tokens, 2))->kind == TK_LParen);
@@ -18,7 +23,7 @@ int main() {
   }
 
   {
-    Vector *tokens = tokenize("(list 1 2 3 4 nil)");
+    Vector *tokens = tokenize("(list 1 2 3 4 nil)", "");
     assert(((Token *)vector_get(tokens, 0))->kind == TK_LParen);
     assert(((Token *)vector_get(tokens, 1))->kind == TK_Ident);
     assert(((Token *)vector_get(tokens, 2))->kind == TK_Number);
