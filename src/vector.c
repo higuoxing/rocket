@@ -1,3 +1,5 @@
+#include "common.h"
+
 #include "vector.h"
 
 static void vector_init(Vector *vec) {

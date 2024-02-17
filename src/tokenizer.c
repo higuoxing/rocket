@@ -1,18 +1,42 @@
-#include <assert.h>
-#include <stdio.h>
-
-#include <readline/chardefs.h>
+#include "common.h"
 
 #include "tokenizer.h"
 #include "vector.h"
 
-static bool is_special_initial(char c);
-static bool is_explicit_sign(char c);
-static bool is_special_subsequent(char c);
-static bool is_initial(char c);
-static bool is_sign_subsequent(char c);
-static bool is_dot_subsequent(char c);
-static bool is_subsequent(char c);
+/*
+ * <explicit_sign> -> + ∣ -
+ */
+#define is_explicit_sign(c) (c == '+' || c == '-')
+
+/*
+ * <special_initial> -> ! ∣ $ ∣ % ∣ & ∣ * ∣ / ∣ : ∣ < ∣ = ∣ > ∣ ? ∣ @ ∣
+ *                      ^ ∣ _ ∣ ~
+ */
+#define is_special_initial(c)                                                  \
+  (c == '!' || c == '$' || c == '%' || c == '&' || c == '*' || c == '/' ||     \
+   c == ':' || c == '<' || c == '=' || c == '>' || c == '?' || c == '@' ||     \
+   c == '^' || c == '_' || c == '~')
+
+/*
+ * <special_subsequent> -> <explicit_sign> ∣ . ∣ @
+ * <explicit_sign> -> + ∣ -
+ */
+#define is_special_subsequent(c) (is_explicit_sign(c) || c == '.' || c == '@')
+
+/* <initial> -> <letter> | <special_initial> */
+#define is_initial(c) (isalpha(c) || is_special_initial(c))
+
+/* <sign_subsequent> -> <initial> ∣ <explicit_sign> ∣ @ */
+#define is_sign_subsequent(c) (is_initial(c) || is_explicit_sign(c) || c == '@')
+
+/* <dot_subsequent> -> <sign_subsequent> ∣ . */
+#define is_dot_subsequent(c) (is_sign_subsequent(c) || c == '.')
+
+/* <subsequent> -> <initial> ∣ <digit>
+ *              ∣ <special_subsequent>
+ */
+#define is_subsequent(c)                                                       \
+  (is_initial(c) || isdigit(c) || is_special_subsequent(c))
 
 Token *make_token(TokenKind kind, TokenLoc loc, const char *literal,
                   int tok_len) {
@@ -47,6 +71,7 @@ Vector *tokenize(const char *program, const char *filename) {
     /* Consume whitespaces and newlines. */
     while (*p && whitespace(*p)) {
       ++p;
+      column += (*p == ' ' ? 1 : 8);
     }
 
     /* No more tokens? Return directly. */
@@ -56,31 +81,31 @@ Vector *tokenize(const char *program, const char *filename) {
 
     switch (*p) {
     case '(': {
-      TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+      TokenLoc loc = {.file = filename, .line = line, .column = column};
       vector_append(tokens, make_token(TK_LParen, loc, p, 1));
       ++p;
       break;
     }
     case ')': {
-      TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+      TokenLoc loc = {.file = filename, .line = line, .column = column};
       vector_append(tokens, make_token(TK_RParen, loc, p, 1));
       ++p;
       break;
     }
     case '.': {
-      TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+      TokenLoc loc = {.file = filename, .line = line, .column = column};
       vector_append(tokens, make_token(TK_Dot, loc, p, 1));
       ++p;
       break;
     }
     case '\'': {
-      TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+      TokenLoc loc = {.file = filename, .line = line, .column = column};
       vector_append(tokens, make_token(TK_Quote, loc, p, 1));
       ++p;
       break;
     }
     case '`': {
-      TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+      TokenLoc loc = {.file = filename, .line = line, .column = column};
       vector_append(tokens, make_token(TK_Backquote, loc, p, 1));
       ++p;
       break;
@@ -96,12 +121,12 @@ Vector *tokenize(const char *program, const char *filename) {
       /* FIXME: Can we simplify the logic? */
       if ((tok_len == 5 && strncmp(p, "#true", 5) == 0) ||
           (tok_len == 2 && strncmp(p, "#t", 2) == 0)) {
-        TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+        TokenLoc loc = {.file = filename, .line = line, .column = column};
         vector_append(tokens, make_token(TK_Boolean, loc, p, tok_len));
         p = endp;
       } else if ((tok_len == 6 && strncmp(p, "#false", 6) == 0) ||
                  (tok_len == 2 && strncmp(p, "#f", 2) == 0)) {
-        TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+        TokenLoc loc = {.file = filename, .line = line, .column = column};
         vector_append(tokens, make_token(TK_Boolean, loc, p, tok_len));
         p = endp;
       } else {
@@ -114,7 +139,7 @@ Vector *tokenize(const char *program, const char *filename) {
       if (isdigit(*p)) {
         char *endp;
         strtod(p, &endp);
-        TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+        TokenLoc loc = {.file = filename, .line = line, .column = column};
         vector_append(tokens, make_token(TK_Number, loc, p, (int)(endp - p)));
 
         p = endp;
@@ -149,7 +174,7 @@ Vector *tokenize(const char *program, const char *filename) {
           while (*p && is_subsequent(*p)) {
             ++p;
           }
-          TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+          TokenLoc loc = {.file = filename, .line = line, .column = column};
           vector_append(tokens, make_token(TK_Ident, loc, tok_literal,
                                            (int)(p - tok_literal)));
         } else if (is_explicit_sign(*p) || *p == '.') {
@@ -161,14 +186,18 @@ Vector *tokenize(const char *program, const char *filename) {
               /* <sign_subsequent> <subsequent>* */
               if (*p && (is_sign_subsequent(*p))) {
                 ++p;
+                /* Consume subsequent. */
+                while (*p && is_subsequent(*p)) {
+                  ++p;
+                }
+              } else if (*p && whitespace(*p)) {
+                /* <peculiar_identifier> -> <explicit_sign> */
+                /* Don't need to consume whitespaces. */
               } else {
                 /* Raise error. */
                 goto fail;
               }
-              /* Consume subsequent. */
-              while (*p && is_subsequent(*p)) {
-                ++p;
-              }
+
             } else if (*p && *p == '.') {
               /* . <dot_subsequent> <subsequent>* */
               /* Consume '.' */
@@ -185,7 +214,7 @@ Vector *tokenize(const char *program, const char *filename) {
                 ++p;
               }
             }
-            TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+            TokenLoc loc = {.file = filename, .line = line, .column = column};
             vector_append(tokens, make_token(TK_Ident, loc, tok_literal,
                                              (int)(p - tok_literal)));
           } else {
@@ -210,7 +239,7 @@ Vector *tokenize(const char *program, const char *filename) {
               /* Raise error. */
               goto fail;
             }
-            TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+            TokenLoc loc = {.file = filename, .line = line, .column = column};
             vector_append(tokens, make_token(TK_Ident, loc, tok_literal,
                                              (int)(p - tok_literal)));
           }
@@ -224,7 +253,7 @@ Vector *tokenize(const char *program, const char *filename) {
   }
 
 out : {
-  TokenLoc loc = {.file = filename, .line = 1, .column = 2};
+  TokenLoc loc = {.file = filename, .line = line, .column = column};
   vector_append(tokens, make_token(TK_EOF, loc, "", 0));
   return tokens;
 }
@@ -233,51 +262,4 @@ fail : {
   fprintf(stdout, "Error: %s:%d\n", __FILE__, __LINE__);
   exit(1);
 }
-}
-
-static bool is_special_initial(char c) {
-  /*
-   * <special_initial> -> ! ∣ $ ∣ % ∣ & ∣ * ∣ / ∣ : ∣ < ∣ = ∣ > ∣ ? ∣ @ ∣
-   *                      ^ ∣ _ ∣ ~
-   */
-  return c == '!' || c == '$' || c == '%' || c == '&' || c == '*' || c == '/' ||
-         c == ':' || c == '<' || c == '=' || c == '>' || c == '?' || c == '@' ||
-         c == '^' || c == '_' || c == '~';
-}
-
-static bool is_explicit_sign(char c) {
-  /*
-   * <explicit_sign> -> + ∣ -
-   */
-  return c == '+' || c == '-';
-}
-
-static bool is_special_subsequent(char c) {
-  /*
-   * <special_subsequent> -> <explicit_sign> ∣ . ∣ @
-   * <explicit_sign> -> + ∣ -
-   */
-  return is_explicit_sign(c) || c == '.' || c == '@';
-}
-
-static bool is_initial(char c) {
-  /* <initial> -> <letter> | <special_initial> */
-  return isalpha(c) || is_special_initial(c);
-}
-
-static bool is_sign_subsequent(char c) {
-  /* <sign_subsequent> -> <initial> ∣ <explicit_sign> ∣ @ */
-  return is_initial(c) || is_explicit_sign(c) || c == '@';
-}
-
-static bool is_dot_subsequent(char c) {
-  /* <dot_subsequent> -> <sign_subsequent> ∣ . */
-  return is_sign_subsequent(c) || c == '.';
-}
-
-static bool is_subsequent(char c) {
-  /* <subsequent> -> <initial> ∣ <digit>
-   *              ∣ <special_subsequent>
-   */
-  return is_initial(c) || isdigit(c) || is_special_subsequent(c);
 }

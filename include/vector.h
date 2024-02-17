@@ -1,8 +1,7 @@
 #ifndef _VECTOR_H_
 #define _VECTOR_H_
 
-#include <stdbool.h>
-#include <stdlib.h>
+#include "common.h"
 
 #define VECTOR_DEFAULT_INIT_SIZE 32
 

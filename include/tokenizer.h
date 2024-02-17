@@ -1,9 +1,7 @@
 #ifndef _TOKENIZER_H_
 #define _TOKENIZER_H_
 
-#include <ctype.h>
-#include <stdbool.h>
-#include <stdlib.h>
+#include "common.h"
 
 #include "vector.h"
 
