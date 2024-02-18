@@ -7,19 +7,21 @@
 
 static Ast *parse_boolean(Token *tok);
 static Ast *parse_number(Token *tok);
-static Ast *parse_object(Token **tokens, int *cursor);
+static Ast *parse_expression(Token **tokens, int *cursor);
 
-Ast *parse_program(Vector *tokens) {
+Vector *parse_program(Vector *tokens) {
   int cursor = 0;
-  Ast *ast = parse_object((Token **)vector_data(tokens), &cursor);
-  if (((Token *)vector_get(tokens, cursor))->kind != TK_EOF) {
-    fprintf(stderr, "%s: Cannot consume all tokens", __FUNCTION__);
-    exit(1);
+  Vector *program = make_vector();
+
+  while (((Token *)vector_get(tokens, cursor))->kind != TK_EOF) {
+    Ast *expr = parse_expression((Token **)vector_data(tokens), &cursor);
+    vector_append(program, expr);
   }
-  return ast;
+
+  return program;
 }
 
-static Ast *parse_object(Token **tokens, int *cursor) {
+static Ast *parse_expression(Token **tokens, int *cursor) {
   assert(tokens[*cursor]);
   switch (tokens[*cursor]->kind) {
   case TK_Boolean: {
@@ -52,7 +54,7 @@ static Ast *parse_object(Token **tokens, int *cursor) {
         exit(1);
       }
 
-      inner_object = parse_object(tokens, cursor);
+      inner_object = parse_expression(tokens, cursor);
 
       list = make_cons(inner_object, list);
     }

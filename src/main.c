@@ -76,11 +76,13 @@ static int rocket_main(int argc, char **argv) {
 
     Vector *tokens = tokenize(line, "<stdin>");
     int num_tokens = vector_len(tokens);
-    Ast *ast = NULL;
+    Vector *program = NULL;
 
-    ast = parse_program(tokens);
+    program = parse_program(tokens);
 
-    dump_ast(ast);
+    for (int i = 0; i < vector_len(program); ++i) {
+      dump_ast(vector_get(program, i));
+    }
 
     /* Clean up. */
     for (int i = 0; i < num_tokens; ++i) {

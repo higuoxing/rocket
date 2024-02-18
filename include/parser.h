@@ -1,9 +1,9 @@
 #ifndef _PARSER_H_
 #define _PARSER_H_
 
-#include "vector.h"
 #include "ast.h"
+#include "vector.h"
 
-extern Ast *parse_program(Vector *tokens);
+extern Vector *parse_program(Vector *tokens);
 
 #endif
