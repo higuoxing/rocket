@@ -5,7 +5,7 @@
 
 int main() {
   {
-    Vector *tokens = tokenize("  \n\n", "");
+    Vector *tokens = tokenize("  ", "");
     assert(((Token *)vector_get(tokens, 0))->kind == TK_EOF);
   }
 

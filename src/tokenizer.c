@@ -129,6 +129,11 @@ Vector *tokenize(const char *program, const char *filename) {
         TokenLoc loc = {.file = filename, .line = line, .column = column};
         vector_append(tokens, make_token(TK_Boolean, loc, p, tok_len));
         p = endp;
+      } else if (p[1] == '\\') {
+        /* Characters start with `#\`. */
+        TokenLoc loc = {.file = filename, .line = line, .column = column};
+        vector_append(tokens, make_token(TK_Char, loc, p, tok_len));
+        p = endp;
       } else {
         /* Raise Error. */
         goto fail;
@@ -246,7 +251,12 @@ Vector *tokenize(const char *program, const char *filename) {
         }
         break;
       } else {
-        goto out;
+	/* Make sure we have consumed all tokens. */
+        if (*p) {
+          goto fail;
+        } else {
+          goto out;
+        }
       }
     } /* default: */
     }

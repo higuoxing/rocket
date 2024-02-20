@@ -5,6 +5,7 @@
 
 typedef enum AstKind {
   AK_Boolean,
+  AK_Char,
   AK_Number,
   AK_Ident,
   AK_Cons,
@@ -18,6 +19,8 @@ typedef struct Cons {
 typedef union AstVal {
   /* AK_Boolean */
   bool boolean;
+  /* AK_Char */
+  char char_;
   /* AK_Number */
   double number;
   /* AK_Ident */

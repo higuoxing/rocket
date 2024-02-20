@@ -14,6 +14,10 @@ static void dump_ast(Ast *ast) {
       fprintf(stdout, "<bool>: %s\n", ast->val.boolean ? "#t" : "#f");
       break;
     }
+    case AK_Char: {
+      fprintf(stdout, "<char>: %c\n", ast->val.char_);
+      break;
+    }
     case AK_Number: {
       fprintf(stdout, "<number>: %.2f\n", ast->val.number);
       break;

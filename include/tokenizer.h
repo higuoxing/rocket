@@ -18,6 +18,7 @@ typedef enum TokenKind {
   /* '`' */
   TK_Backquote,
   TK_Boolean,
+  TK_Char,
   TK_Number,
 
   /* EOF */
