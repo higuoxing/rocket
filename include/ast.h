@@ -37,5 +37,6 @@ typedef struct AstNode {
 extern Cons *make_cons(void *car, void *cdr);
 extern Cons *list_reverse(Cons *list);
 extern Ast *make_ast_node(AstKind kind, AstVal val);
+extern void free_ast_node(Ast *node);
 
 #endif

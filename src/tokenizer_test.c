@@ -40,8 +40,7 @@ int main() {
     Vector *tokens = tokenize("(+ 1 2 3 4 5)", "");
     assert(((Token *)vector_get(tokens, 0))->kind == TK_LParen);
     assert(((Token *)vector_get(tokens, 1))->kind == TK_Ident);
-    assert(strncmp(((Token *)vector_get(tokens, 1))->literal, "+", 1) == 0);
-    assert(((Token *)vector_get(tokens, 1))->literal_len == 1);
+    assert(strcmp(((Token *)vector_get(tokens, 1))->literal, "+") == 0);
     assert(((Token *)vector_get(tokens, 2))->kind == TK_Number);
     assert(((Token *)vector_get(tokens, 3))->kind == TK_Number);
     assert(((Token *)vector_get(tokens, 4))->kind == TK_Number);

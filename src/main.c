@@ -90,7 +90,7 @@ static int rocket_main(int argc, char **argv) {
 
     /* Clean up. */
     for (int i = 0; i < num_tokens; ++i) {
-      free(vector_get(tokens, i));
+      free_token((Token *)vector_get(tokens, i));
     }
     free_vector(tokens);
 

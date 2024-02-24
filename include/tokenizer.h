@@ -37,16 +37,14 @@ typedef struct Token {
   /* Location of the token. */
   TokenLoc loc;
 
-  /* Literal representation. */
+  /* Literal representation. (null-terminated string) */
   const char *literal;
-  /* Length of the literal string. */
-  int literal_len;
 } Token;
 
 extern Token *make_token(TokenKind kind, TokenLoc loc, const char *literal,
                          int tok_len);
 extern Vector *tokenize(const char *program, const char *filename);
 extern TokenKind token_kind(Token *tok);
-extern int token_len(Token *tok);
+extern void free_token(Token *);
 
 #endif /* _TOKENIZER_H_ */

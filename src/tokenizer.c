@@ -2,6 +2,8 @@
 
 #include "tokenizer.h"
 #include "vector.h"
+#include <stdlib.h>
+#include <string.h>
 
 /*
  * <explicit_sign> -> + ∣ -
@@ -43,17 +45,17 @@ Token *make_token(TokenKind kind, TokenLoc loc, const char *literal,
   Token *token = (Token *)malloc(sizeof(Token));
   token->kind = kind;
   token->loc = loc;
-  token->literal = literal;
-  token->literal_len = tok_len;
+  token->literal = strndup(literal, tok_len);
   return token;
+}
+
+void free_token(Token *tok) {
+  free((void *)tok->literal);
+  free(tok);
 }
 
 TokenKind token_kind(Token *tok) {
   return tok->kind;
-}
-
-int token_len(Token *tok) {
-  return tok->literal_len;
 }
 
 /*
@@ -251,7 +253,7 @@ Vector *tokenize(const char *program, const char *filename) {
         }
         break;
       } else {
-	/* Make sure we have consumed all tokens. */
+        /* Make sure we have consumed all tokens. */
         if (*p) {
           goto fail;
         } else {

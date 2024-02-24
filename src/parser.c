@@ -91,7 +91,7 @@ static Ast *parse_expression(Token **tokens, int *cursor) {
 static Ast *parse_boolean(Token *tok) {
   AstVal val;
   assert(tok->kind == TK_Boolean);
-  val.boolean = (strncmp(tok->literal, "#t", 2) == 0 ? true : false);
+  val.boolean = (strcmp(tok->literal, "#t") == 0 ? true : false);
   return make_ast_node(AK_Boolean, val);
 }
 
@@ -105,38 +105,29 @@ static Ast *parse_char(Token *tok) {
    * <character name> -> alarm | backspace | delete
    *                  | escape | newline | null | return | space | tab
    */
-  if (tok->literal_len == 3) {
+  if (strlen(tok->literal) == 3) {
     /* #\<any_char> */
     val.char_ = tok->literal[2];
   } else {
-    if (tok->literal_len >= 4 && tok->literal[2] == 'x') {
+    if (strlen(tok->literal) >= 4 && tok->literal[2] == 'x') {
       /* Handle #\x<hex_scalar> */
-      char hex_str[100];
-
-      if (tok->literal_len > sizeof(hex_str) - 1) {
-        /* Raise error. */
-        fprintf(stderr, "%s: Error\n", __FUNCTION__);
-        exit(1);
-      }
-      memcpy(hex_str, tok->literal + 3, tok->literal_len - 3);
-      hex_str[tok->literal_len - 2] = '\0';
-      val.char_ = (char)strtol(hex_str, NULL, 16);
+      val.char_ = (char)strtol(tok->literal, NULL, 16);
     } else {
       /* Handle #\<character name> */
       /* TODO: Add more characters. */
-      if (strncmp(tok->literal, "#\\alarm", tok->literal_len) == 0) {
+      if (strcmp(tok->literal, "#\\alarm") == 0) {
         val.char_ = 7;
-      } else if (strncmp(tok->literal, "#\\backspace", tok->literal_len) == 0) {
+      } else if (strcmp(tok->literal, "#\\backspace") == 0) {
         val.char_ = 8;
-      } else if (strncmp(tok->literal, "#\\delete", tok->literal_len) == 0) {
+      } else if (strcmp(tok->literal, "#\\delete") == 0) {
         val.char_ = 127;
-      } else if (strncmp(tok->literal, "#\\newline", tok->literal_len) == 0) {
+      } else if (strcmp(tok->literal, "#\\newline") == 0) {
         val.char_ = 10;
-      } else if (strncmp(tok->literal, "#\\return", tok->literal_len) == 0) {
+      } else if (strcmp(tok->literal, "#\\return") == 0) {
         val.char_ = 13;
-      } else if (strncmp(tok->literal, "#\\space", tok->literal_len) == 0) {
+      } else if (strcmp(tok->literal, "#\\space") == 0) {
         val.char_ = 32;
-      } else if (strncmp(tok->literal, "#\\tab", tok->literal_len) == 0) {
+      } else if (strcmp(tok->literal, "#\\tab") == 0) {
         val.char_ = 9;
       } else {
         /* Otherwise, Raise error. */

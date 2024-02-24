@@ -30,3 +30,7 @@ Ast *make_ast_node(AstKind kind, AstVal val) {
   node->val = val;
   return node;
 }
+
+void free_ast_node(Ast *node) {
+  
+}
