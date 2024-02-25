@@ -94,7 +94,7 @@ static int rocket_main(int argc, char **argv) {
 
     Vector *tokens = tokenize(line, "<stdin>");
     int num_tokens = vector_len(tokens);
-    Vector *program;
+    Vector *program = NULL;
 
     program = parse_program(tokens);
 

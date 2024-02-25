@@ -20,21 +20,20 @@ typedef enum ValueType {
   VAL_NUMBER,
 } ValueType;
 
-typedef Datum Value;
-typedef Vector ValueArray;
+typedef struct Value {
+  ValueType type;
+  Datum value;
+} Value;
 
-typedef struct Chunk {
-  int cap;
-  int len;
-  uint8_t *code;
-  ValueArray *constants;
-} CodeChunk;
+VECTOR_GENERATE_TYPE_NAME(Value, ConstantPool, constant_pool);
+VECTOR_GENERATE_TYPE_NAME(uint8_t, Chunk, chunk);
 
 typedef struct VM {
-  CodeChunk *chunk;
-  uint8_t *ip;
-  Datum stack[VM_STACK_MAX_DEPTH];
-  Datum *sp; /* stack pointer */
+  Chunk *code;
+  ConstantPool *constant_pool;
+  uint8_t *ip; /* instruction pointer */
+  Value stack[VM_STACK_MAX_DEPTH];
+  Value *sp; /* stack pointer */
 } VM;
 
 typedef enum Status {
@@ -47,14 +46,12 @@ typedef struct Result {
   Datum val;
 } Result;
 
-extern CodeChunk *make_chunk(void);
-extern void write_byte(CodeChunk *chunk, uint8_t insn);
-extern void free_chunk(CodeChunk *chunk);
-extern int add_constant(CodeChunk *chunk, Value val);
+extern void write_byte(Chunk *chunk, uint8_t insn);
+extern int add_constant(ConstantPool *constant_pool, Value val);
 extern void vm_init(void);
 extern void free_vm(VM *vm);
 
 extern int compile(Ast *expr);
-extern Result interpret(CodeChunk *chunk);
+extern Result interpret(Chunk *chunk, ConstantPool *constant_pool);
 
 #endif

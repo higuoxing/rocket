@@ -4,15 +4,17 @@
 #include "vector.h"
 #include "vm.h"
 
-int disassemble_instruction(CodeChunk *chunk, int offset) {
+int disassemble_instruction(Chunk *chunk, ConstantPool *constant_pool,
+                            int offset) {
   printf("%04d ", offset);
-  uint8_t instr = chunk->code[offset];
+  uint8_t instr = chunk_get(chunk, offset);
 
   switch (instr) {
   case OP_CONSTANT: {
-    printf(
-        "OP_CONSTANT %.2f\n",
-        DatumGetFloat(vector_get(chunk->constants, chunk->code[offset + 1])));
+    printf("OP_CONSTANT %.2f\n",
+           DatumGetFloat(
+               constant_pool_get(constant_pool, chunk_get(chunk, offset + 1))
+                   .value));
     return offset + 2;
   }
   case OP_RETURN: {
@@ -27,24 +29,31 @@ int disassemble_instruction(CodeChunk *chunk, int offset) {
   return 0;
 }
 
-void disassemble_chunk(CodeChunk *chunk, const char *name) {
+void disassemble_chunk(Chunk *chunk, ConstantPool *constant_pool,
+                       const char *name) {
   int offset = 0;
   printf("== %s ==\n", name);
 
   while (offset < chunk->len) {
-    offset = disassemble_instruction(chunk, offset);
+    offset = disassemble_instruction(chunk, constant_pool, offset);
   }
 }
 
 int main() {
-  CodeChunk *chunk = make_chunk();
-  int constant = add_constant(chunk, FloatGetDatum(1.2));
+  Chunk *chunk = make_chunk();
+  ConstantPool *constant_pool = make_constant_pool();
+  Value constant = {
+      .type = VAL_NUMBER,
+      .value = FloatGetDatum(1.20),
+  };
+
+  int off = add_constant(constant_pool, constant);
   write_byte(chunk, OP_CONSTANT);
-  write_byte(chunk, constant);
+  write_byte(chunk, off);
   write_byte(chunk, OP_RETURN);
-  disassemble_chunk(chunk, "test_chunk");
+  disassemble_chunk(chunk, constant_pool, "test_chunk");
   vm_init();
-  interpret(chunk);
+  interpret(chunk, constant_pool);
   free_chunk(chunk);
   return 0;
 }
