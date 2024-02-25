@@ -18,7 +18,7 @@ Vector *parse_program(Vector *tokens) {
 
   while (((Token *)vector_get(tokens, cursor))->kind != TK_EOF) {
     Ast *expr = parse_expression((Token **)vector_data(tokens), &cursor);
-    vector_append(program, expr);
+    vector_append(program, PointerGetDatum(expr));
   }
 
   return program;

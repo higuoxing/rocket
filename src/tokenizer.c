@@ -67,6 +67,7 @@ Vector *tokenize(const char *program, const char *filename) {
   Vector *tokens = make_vector();
   int line = 1;
   int column = 1;
+
   assert(program);
 
   while (*p) {
@@ -84,31 +85,32 @@ Vector *tokenize(const char *program, const char *filename) {
     switch (*p) {
     case '(': {
       TokenLoc loc = {.file = filename, .line = line, .column = column};
-      vector_append(tokens, make_token(TK_LParen, loc, p, 1));
+      vector_append(tokens, PointerGetDatum(make_token(TK_LParen, loc, p, 1)));
       ++p;
       break;
     }
     case ')': {
       TokenLoc loc = {.file = filename, .line = line, .column = column};
-      vector_append(tokens, make_token(TK_RParen, loc, p, 1));
+      vector_append(tokens, PointerGetDatum(make_token(TK_RParen, loc, p, 1)));
       ++p;
       break;
     }
     case '.': {
       TokenLoc loc = {.file = filename, .line = line, .column = column};
-      vector_append(tokens, make_token(TK_Dot, loc, p, 1));
+      vector_append(tokens, PointerGetDatum(make_token(TK_Dot, loc, p, 1)));
       ++p;
       break;
     }
     case '\'': {
       TokenLoc loc = {.file = filename, .line = line, .column = column};
-      vector_append(tokens, make_token(TK_Quote, loc, p, 1));
+      vector_append(tokens, PointerGetDatum(make_token(TK_Quote, loc, p, 1)));
       ++p;
       break;
     }
     case '`': {
       TokenLoc loc = {.file = filename, .line = line, .column = column};
-      vector_append(tokens, make_token(TK_Backquote, loc, p, 1));
+      vector_append(tokens,
+                    PointerGetDatum(make_token(TK_Backquote, loc, p, 1)));
       ++p;
       break;
     }
@@ -124,17 +126,20 @@ Vector *tokenize(const char *program, const char *filename) {
       if ((tok_len == 5 && strncmp(p, "#true", 5) == 0) ||
           (tok_len == 2 && strncmp(p, "#t", 2) == 0)) {
         TokenLoc loc = {.file = filename, .line = line, .column = column};
-        vector_append(tokens, make_token(TK_Boolean, loc, p, tok_len));
+        vector_append(tokens,
+                      PointerGetDatum(make_token(TK_Boolean, loc, p, tok_len)));
         p = endp;
       } else if ((tok_len == 6 && strncmp(p, "#false", 6) == 0) ||
                  (tok_len == 2 && strncmp(p, "#f", 2) == 0)) {
         TokenLoc loc = {.file = filename, .line = line, .column = column};
-        vector_append(tokens, make_token(TK_Boolean, loc, p, tok_len));
+        vector_append(tokens,
+                      PointerGetDatum(make_token(TK_Boolean, loc, p, tok_len)));
         p = endp;
       } else if (p[1] == '\\') {
         /* Characters start with `#\`. */
         TokenLoc loc = {.file = filename, .line = line, .column = column};
-        vector_append(tokens, make_token(TK_Char, loc, p, tok_len));
+        vector_append(tokens,
+                      PointerGetDatum(make_token(TK_Char, loc, p, tok_len)));
         p = endp;
       } else {
         /* Raise Error. */
@@ -147,7 +152,8 @@ Vector *tokenize(const char *program, const char *filename) {
         char *endp;
         strtod(p, &endp);
         TokenLoc loc = {.file = filename, .line = line, .column = column};
-        vector_append(tokens, make_token(TK_Number, loc, p, (int)(endp - p)));
+        vector_append(tokens, PointerGetDatum(make_token(TK_Number, loc, p,
+                                                         (int)(endp - p))));
 
         p = endp;
         break;
@@ -182,8 +188,9 @@ Vector *tokenize(const char *program, const char *filename) {
             ++p;
           }
           TokenLoc loc = {.file = filename, .line = line, .column = column};
-          vector_append(tokens, make_token(TK_Ident, loc, tok_literal,
-                                           (int)(p - tok_literal)));
+          vector_append(tokens,
+                        PointerGetDatum(make_token(TK_Ident, loc, tok_literal,
+                                                   (int)(p - tok_literal))));
         } else if (is_explicit_sign(*p) || *p == '.') {
           /* Case: <peculiar_identifier> */
           if (is_explicit_sign(*p)) {
@@ -222,8 +229,9 @@ Vector *tokenize(const char *program, const char *filename) {
               }
             }
             TokenLoc loc = {.file = filename, .line = line, .column = column};
-            vector_append(tokens, make_token(TK_Ident, loc, tok_literal,
-                                             (int)(p - tok_literal)));
+            vector_append(tokens,
+                          PointerGetDatum(make_token(TK_Ident, loc, tok_literal,
+                                                     (int)(p - tok_literal))));
           } else {
             /* . <dot_subsequent> <subsequent>* */
             const char *tok_literal = p;
@@ -247,8 +255,9 @@ Vector *tokenize(const char *program, const char *filename) {
               goto fail;
             }
             TokenLoc loc = {.file = filename, .line = line, .column = column};
-            vector_append(tokens, make_token(TK_Ident, loc, tok_literal,
-                                             (int)(p - tok_literal)));
+            vector_append(tokens,
+                          PointerGetDatum(make_token(TK_Ident, loc, tok_literal,
+                                                     (int)(p - tok_literal))));
           }
         }
         break;
@@ -266,7 +275,7 @@ Vector *tokenize(const char *program, const char *filename) {
 
 out : {
   TokenLoc loc = {.file = filename, .line = line, .column = column};
-  vector_append(tokens, make_token(TK_EOF, loc, "", 0));
+  vector_append(tokens, PointerGetDatum(make_token(TK_EOF, loc, "", 0)));
   return tokens;
 }
 
