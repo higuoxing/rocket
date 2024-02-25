@@ -207,6 +207,8 @@ Vector *tokenize(const char *program, const char *filename) {
               } else if (*p && whitespace(*p)) {
                 /* <peculiar_identifier> -> <explicit_sign> */
                 /* Don't need to consume whitespaces. */
+              } else if (*p == ')') {
+                /* `(+)` */
               } else {
                 /* Raise error. */
                 goto fail;

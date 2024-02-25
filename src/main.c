@@ -31,6 +31,20 @@ static void dump_ast(Ast *ast) {
       }
       break;
     }
+    case AK_Ident: {
+      fprintf(stdout, "<ident>: %s\n", ast->val.ident);
+      break;
+    }
+    case AK_ProcCall: {
+      fprintf(stdout, "<proc_call>: ");
+      dump_ast(ast->val.proc_call.callable);
+      for (int i = 0; i < vector_len(ast->val.proc_call.args); ++i) {
+        fprintf(stdout, "             ");
+        dump_ast((Ast *)DatumGetPtr(vector_get(ast->val.proc_call.args, i)));
+      }
+      fprintf(stdout, "\n");
+      break;
+    }
     default:
       fprintf(stderr, "%s: AstKind (%d) not implemented!\n", __FUNCTION__,
               ast->kind);

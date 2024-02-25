@@ -10,6 +10,7 @@
 static Ast *parse_boolean(Token *tok);
 static Ast *parse_char(Token *tok);
 static Ast *parse_number(Token *tok);
+static Ast *parse_ident(Token *tok);
 static Ast *parse_expression(Token **tokens, int *cursor);
 
 Vector *parse_program(Vector *tokens) {
@@ -43,15 +44,27 @@ static Ast *parse_expression(Token **tokens, int *cursor) {
     return number_ast;
   }
   case TK_Ident: {
-    // Ast *ident_ast =
+    Ast *ident_ast = parse_ident(tokens[*cursor]);
     *cursor += 1;
-    return NULL;
+    return ident_ast;
   }
   case TK_LParen: {
     Cons *list = NULL;
     AstVal val;
+    int arg_index = 0;
+    Vector *args = NULL;
+
     /* Consume '(' */
     *cursor += 1;
+
+    if (tokens[*cursor]->kind == TK_RParen) {
+      /* Consume ')' */
+      *cursor += 1;
+      /* This is `()` (or nil), we return it directly. */
+      return NULL;
+    }
+
+    args = make_vector();
 
     /* Parse until ')' */
     while (tokens[*cursor]->kind != TK_RParen) {
@@ -64,15 +77,21 @@ static Ast *parse_expression(Token **tokens, int *cursor) {
 
       inner_object = parse_expression(tokens, cursor);
 
-      list = make_cons(inner_object, list);
+      if (arg_index == 0) {
+        val.proc_call.callable = inner_object;
+      } else {
+        vector_append(args, PointerGetDatum(inner_object));
+      }
+
+      ++arg_index;
     }
 
     /* Consume ')' */
     assert(tokens[*cursor]->kind == TK_RParen);
     *cursor += 1;
 
-    val.cons = list_reverse(list);
-    return make_ast_node(AK_Cons, val);
+    val.proc_call.args = args;
+    return make_ast_node(AK_ProcCall, val);
   }
   case TK_EOF: {
     /* Need more tokens. */
@@ -145,4 +164,11 @@ static Ast *parse_number(Token *tok) {
   assert(tok->kind == TK_Number);
   val.number = strtod(tok->literal, NULL);
   return make_ast_node(AK_Number, val);
+}
+
+static Ast *parse_ident(Token *tok) {
+  AstVal val;
+  assert(tok->kind == TK_Ident);
+  val.ident = strdup(tok->literal);
+  return make_ast_node(AK_Ident, val);
 }

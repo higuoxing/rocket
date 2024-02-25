@@ -10,6 +10,7 @@
 
 typedef enum OpCode {
   OP_CONSTANT,
+  OP_FUNC_CALL,
   OP_RETURN,
 } OpCode;
 
