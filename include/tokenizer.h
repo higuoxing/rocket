@@ -7,22 +7,22 @@
 
 typedef enum TokenKind {
   /* '(' */
-  TK_LParen,
+  TOKEN_LPAREN,
   /* ')' */
-  TK_RParen,
-  TK_Dot,
+  TOKEN_RPAREN,
+  TOKEN_DOT,
   /* Identifier */
-  TK_Ident,
+  TOKEN_IDENT,
   /* '\'' */
-  TK_Quote,
+  TOKEN_QUOTE,
   /* '`' */
-  TK_Backquote,
-  TK_Boolean,
-  TK_Char,
-  TK_Number,
+  TOKEN_BACKQUOTE,
+  TOKEN_BOOL,
+  TOKEN_CHAR,
+  TOKEN_NUMBER,
 
   /* EOF */
-  TK_EOF,
+  TOKEN_EOF,
 } TokenKind;
 
 typedef struct TokenLoc {

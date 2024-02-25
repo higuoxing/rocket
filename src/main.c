@@ -10,19 +10,19 @@
 static void dump_ast(Ast *ast) {
   if (ast) {
     switch (ast->kind) {
-    case AK_Boolean: {
+    case AST_BOOL: {
       fprintf(stdout, "<bool>: %s\n", ast->val.boolean ? "#t" : "#f");
       break;
     }
-    case AK_Char: {
+    case AST_CHAR: {
       fprintf(stdout, "<char>: %c\n", ast->val.char_);
       break;
     }
-    case AK_Number: {
+    case AST_NUMBER: {
       fprintf(stdout, "<number>: %.2f\n", ast->val.number);
       break;
     }
-    case AK_Cons: {
+    case AST_CONS: {
       Cons *cons = ast->val.cons;
 
       while (cons) {
@@ -31,11 +31,11 @@ static void dump_ast(Ast *ast) {
       }
       break;
     }
-    case AK_Ident: {
+    case AST_IDENT: {
       fprintf(stdout, "<ident>: %s\n", ast->val.ident);
       break;
     }
-    case AK_ProcCall: {
+    case AST_PROC_CALL: {
       fprintf(stdout, "<proc_call>: ");
       dump_ast(ast->val.proc_call.callable);
       for (int i = 0; i < vector_len(ast->val.proc_call.args); ++i) {
@@ -57,23 +57,23 @@ static void dump_ast(Ast *ast) {
 
 static const char *token_kind_to_string(TokenKind kind) {
   switch (kind) {
-  case TK_LParen:
+  case TOKEN_LPAREN:
     return "LParen";
-  case TK_RParen:
+  case TOKEN_RPAREN:
     return "RParen";
-  case TK_Dot:
+  case TOKEN_DOT:
     return "Dot";
-  case TK_Ident:
+  case TOKEN_IDENT:
     return "Ident";
-  case TK_Quote:
+  case TOKEN_QUOTE:
     return "Singlequote";
-  case TK_Backquote:
+  case TOKEN_BACKQUOTE:
     return "Backquote";
-  case TK_Boolean:
+  case TOKEN_BOOL:
     return "Boolean";
-  case TK_Number:
+  case TOKEN_NUMBER:
     return "Number";
-  case TK_EOF:
+  case TOKEN_EOF:
     return "EOF";
   default:
     return "Unknown Token";

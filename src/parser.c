@@ -17,7 +17,7 @@ Vector *parse_program(Vector *tokens) {
   int cursor = 0;
   Vector *program = make_vector();
 
-  while (((Token *)vector_get(tokens, cursor))->kind != TK_EOF) {
+  while (((Token *)vector_get(tokens, cursor))->kind != TOKEN_EOF) {
     Ast *expr = parse_expression((Token **)vector_data(tokens), &cursor);
     vector_append(program, PointerGetDatum(expr));
   }
@@ -28,27 +28,27 @@ Vector *parse_program(Vector *tokens) {
 static Ast *parse_expression(Token **tokens, int *cursor) {
   assert(tokens[*cursor]);
   switch (tokens[*cursor]->kind) {
-  case TK_Boolean: {
+  case TOKEN_BOOL: {
     Ast *bool_ast = parse_boolean(tokens[*cursor]);
     *cursor += 1;
     return bool_ast;
   }
-  case TK_Char: {
+  case TOKEN_CHAR: {
     Ast *char_ast = parse_char(tokens[*cursor]);
     *cursor += 1;
     return char_ast;
   }
-  case TK_Number: {
+  case TOKEN_NUMBER: {
     Ast *number_ast = parse_number(tokens[*cursor]);
     *cursor += 1;
     return number_ast;
   }
-  case TK_Ident: {
+  case TOKEN_IDENT: {
     Ast *ident_ast = parse_ident(tokens[*cursor]);
     *cursor += 1;
     return ident_ast;
   }
-  case TK_LParen: {
+  case TOKEN_LPAREN: {
     Cons *list = NULL;
     AstVal val;
     int arg_index = 0;
@@ -57,7 +57,7 @@ static Ast *parse_expression(Token **tokens, int *cursor) {
     /* Consume '(' */
     *cursor += 1;
 
-    if (tokens[*cursor]->kind == TK_RParen) {
+    if (tokens[*cursor]->kind == TOKEN_RPAREN) {
       /* Consume ')' */
       *cursor += 1;
       /* This is `()` (or nil), we return it directly. */
@@ -67,9 +67,9 @@ static Ast *parse_expression(Token **tokens, int *cursor) {
     args = make_vector();
 
     /* Parse until ')' */
-    while (tokens[*cursor]->kind != TK_RParen) {
+    while (tokens[*cursor]->kind != TOKEN_RPAREN) {
       Ast *inner_object = NULL;
-      if (tokens[*cursor]->kind == TK_EOF) {
+      if (tokens[*cursor]->kind == TOKEN_EOF) {
         /* Need more tokens. */
         fprintf(stderr, "%s: Expected more tokens.", __FUNCTION__);
         exit(1);
@@ -87,13 +87,13 @@ static Ast *parse_expression(Token **tokens, int *cursor) {
     }
 
     /* Consume ')' */
-    assert(tokens[*cursor]->kind == TK_RParen);
+    assert(tokens[*cursor]->kind == TOKEN_RPAREN);
     *cursor += 1;
 
     val.proc_call.args = args;
-    return make_ast_node(AK_ProcCall, val);
+    return make_ast_node(AST_PROC_CALL, val);
   }
-  case TK_EOF: {
+  case TOKEN_EOF: {
     /* Need more tokens. */
     fprintf(stderr, "%s: Expected more tokens.", __FUNCTION__);
     exit(1);
@@ -109,14 +109,14 @@ static Ast *parse_expression(Token **tokens, int *cursor) {
 
 static Ast *parse_boolean(Token *tok) {
   AstVal val;
-  assert(tok->kind == TK_Boolean);
+  assert(tok->kind == TOKEN_BOOL);
   val.boolean = (strcmp(tok->literal, "#t") == 0 ? true : false);
-  return make_ast_node(AK_Boolean, val);
+  return make_ast_node(AST_BOOL, val);
 }
 
 static Ast *parse_char(Token *tok) {
   AstVal val;
-  assert(tok->kind == TK_Char);
+  assert(tok->kind == TOKEN_CHAR);
   /*
    * <character> -> #\ <any character>
    *              | #\ <character name>
@@ -156,19 +156,19 @@ static Ast *parse_char(Token *tok) {
     }
   }
 
-  return make_ast_node(AK_Char, val);
+  return make_ast_node(AST_CHAR, val);
 }
 
 static Ast *parse_number(Token *tok) {
   AstVal val;
-  assert(tok->kind == TK_Number);
+  assert(tok->kind == TOKEN_NUMBER);
   val.number = strtod(tok->literal, NULL);
-  return make_ast_node(AK_Number, val);
+  return make_ast_node(AST_NUMBER, val);
 }
 
 static Ast *parse_ident(Token *tok) {
   AstVal val;
-  assert(tok->kind == TK_Ident);
+  assert(tok->kind == TOKEN_IDENT);
   val.ident = strdup(tok->literal);
-  return make_ast_node(AK_Ident, val);
+  return make_ast_node(AST_IDENT, val);
 }

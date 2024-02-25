@@ -7,12 +7,12 @@
 struct AstNode;
 
 typedef enum AstKind {
-  AK_Boolean,
-  AK_Char,
-  AK_Number,
-  AK_Ident,
-  AK_ProcCall,
-  AK_Cons,
+  AST_BOOL,
+  AST_CHAR,
+  AST_NUMBER,
+  AST_IDENT,
+  AST_PROC_CALL,
+  AST_CONS,
 } AstKind;
 
 typedef struct Cons {

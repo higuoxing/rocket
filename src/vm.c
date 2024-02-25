@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "ast.h"
 #include "common.h"
 #include "vector.h"
 #include "vm.h"
@@ -26,7 +27,7 @@ static void chunk_code_resize(CodeChunk *chunk, int new_size) {
   }
 }
 
-void write_insn(CodeChunk *chunk, uint8_t insn) {
+void write_byte(CodeChunk *chunk, uint8_t insn) {
   if (chunk->cap <= chunk->len + sizeof(insn)) {
     chunk_code_resize(chunk, chunk->cap * 2);
   }
@@ -66,28 +67,32 @@ static Datum vm_stack_pop(void) {
   return *vm.sp;
 }
 
-static inline uint8_t read_insn(void) {
+static inline uint8_t read_byte(void) {
   uint8_t insn = *vm.ip;
   ++vm.ip;
   return insn;
 }
 
 static inline Datum read_constant(void) {
-  uint8_t byte = read_insn();
+  uint8_t byte = read_byte();
   return vector_get(vm.chunk->constants, byte);
 }
 
 static Result run() {
   while (1) {
-    uint8_t insn = read_insn();
+    uint8_t insn = read_byte();
     switch (insn) {
     case OP_CONSTANT: {
       vm_stack_push(read_constant());
       break;
     }
+    case OP_PROC_CALL: {
+      uint8_t arg_count = read_byte();
+      break;
+    }
     case OP_RETURN: {
       Result res;
-      res.status = StatusOK;
+      res.status = STATUS_OK;
       return res;
     }
     default:
@@ -101,4 +106,15 @@ Result interpret(CodeChunk *chunk) {
   vm.chunk = chunk;
   vm.ip = chunk->code;
   return run();
+}
+
+int compile(Ast *expr) {
+  switch (expr->kind) {
+  case AST_BOOL:
+  case AST_NUMBER:
+  case AST_CHAR:
+  default:
+    fprintf(stderr, "%s: unrecognized expr kind: %d", __FUNCTION__, expr->kind);
+    exit(1);
+  }
 }

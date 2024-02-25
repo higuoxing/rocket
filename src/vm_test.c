@@ -39,9 +39,9 @@ void disassemble_chunk(CodeChunk *chunk, const char *name) {
 int main() {
   CodeChunk *chunk = make_chunk();
   int constant = add_constant(chunk, FloatGetDatum(1.2));
-  write_insn(chunk, OP_CONSTANT);
-  write_insn(chunk, constant);
-  write_insn(chunk, OP_RETURN);
+  write_byte(chunk, OP_CONSTANT);
+  write_byte(chunk, constant);
+  write_byte(chunk, OP_RETURN);
   disassemble_chunk(chunk, "test_chunk");
   vm_init();
   interpret(chunk);

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include "ast.h"
 #include "vector.h"
 
 #define CHUNK_CODE_DEFAULT_INIT_SIZE 32
@@ -10,9 +11,14 @@
 
 typedef enum OpCode {
   OP_CONSTANT,
-  OP_FUNC_CALL,
+  OP_PROC_CALL,
   OP_RETURN,
 } OpCode;
+
+typedef enum ValueType {
+  VAL_BOOL,
+  VAL_NUMBER,
+} ValueType;
 
 typedef Datum Value;
 typedef Vector ValueArray;
@@ -32,8 +38,8 @@ typedef struct VM {
 } VM;
 
 typedef enum Status {
-  StatusOK,
-  StatusErr,
+  STATUS_OK,
+  STATUS_ERR,
 } ResultStatus;
 
 typedef struct Result {
@@ -42,12 +48,13 @@ typedef struct Result {
 } Result;
 
 extern CodeChunk *make_chunk(void);
-extern void write_insn(CodeChunk *chunk, uint8_t insn);
+extern void write_byte(CodeChunk *chunk, uint8_t insn);
 extern void free_chunk(CodeChunk *chunk);
 extern int add_constant(CodeChunk *chunk, Value val);
 extern void vm_init(void);
 extern void free_vm(VM *vm);
 
+extern int compile(Ast *expr);
 extern Result interpret(CodeChunk *chunk);
 
 #endif
