@@ -7,50 +7,49 @@
 #include <assert.h>
 #include <string.h>
 
-static Ast *parse_boolean(Token *tok);
-static Ast *parse_char(Token *tok);
-static Ast *parse_number(Token *tok);
-static Ast *parse_ident(Token *tok);
-static Ast *parse_expression(Token **tokens, int *cursor);
+static AstNode *parse_boolean(Token *tok);
+static AstNode *parse_char(Token *tok);
+static AstNode *parse_number(Token *tok);
+static AstNode *parse_ident(Token *tok);
+static AstNode *parse_expression(Token **tokens, int *cursor);
 
 Vector *parse_program(Vector *tokens) {
   int cursor = 0;
   Vector *program = make_vector();
 
   while (((Token *)vector_get(tokens, cursor))->kind != TOKEN_EOF) {
-    Ast *expr = parse_expression((Token **)vector_data(tokens), &cursor);
+    AstNode *expr = parse_expression((Token **)vector_data(tokens), &cursor);
     vector_append(program, PointerGetDatum(expr));
   }
 
   return program;
 }
 
-static Ast *parse_expression(Token **tokens, int *cursor) {
+static AstNode *parse_expression(Token **tokens, int *cursor) {
   assert(tokens[*cursor]);
   switch (tokens[*cursor]->kind) {
   case TOKEN_BOOL: {
-    Ast *bool_ast = parse_boolean(tokens[*cursor]);
+    AstNode *bool_ast = parse_boolean(tokens[*cursor]);
     *cursor += 1;
     return bool_ast;
   }
   case TOKEN_CHAR: {
-    Ast *char_ast = parse_char(tokens[*cursor]);
+    AstNode *char_ast = parse_char(tokens[*cursor]);
     *cursor += 1;
     return char_ast;
   }
   case TOKEN_NUMBER: {
-    Ast *number_ast = parse_number(tokens[*cursor]);
+    AstNode *number_ast = parse_number(tokens[*cursor]);
     *cursor += 1;
     return number_ast;
   }
   case TOKEN_IDENT: {
-    Ast *ident_ast = parse_ident(tokens[*cursor]);
+    AstNode *ident_ast = parse_ident(tokens[*cursor]);
     *cursor += 1;
     return ident_ast;
   }
   case TOKEN_LPAREN: {
-    Cons *list = NULL;
-    AstVal val;
+    AstNode *callable = NULL;
     int arg_index = 0;
     Vector *args = NULL;
 
@@ -68,19 +67,19 @@ static Ast *parse_expression(Token **tokens, int *cursor) {
 
     /* Parse until ')' */
     while (tokens[*cursor]->kind != TOKEN_RPAREN) {
-      Ast *inner_object = NULL;
+      AstNode *inner_ast = NULL;
       if (tokens[*cursor]->kind == TOKEN_EOF) {
         /* Need more tokens. */
         fprintf(stderr, "%s: Expected more tokens.", __FUNCTION__);
         exit(1);
       }
 
-      inner_object = parse_expression(tokens, cursor);
+      inner_ast = parse_expression(tokens, cursor);
 
       if (arg_index == 0) {
-        val.proc_call.callable = inner_object;
+        callable = inner_ast;
       } else {
-        vector_append(args, PointerGetDatum(inner_object));
+        vector_append(args, PointerGetDatum(inner_ast));
       }
 
       ++arg_index;
@@ -90,8 +89,7 @@ static Ast *parse_expression(Token **tokens, int *cursor) {
     assert(tokens[*cursor]->kind == TOKEN_RPAREN);
     *cursor += 1;
 
-    val.proc_call.args = args;
-    return make_ast_node(AST_PROC_CALL, val);
+    return make_ast_proc_call(callable, args);
   }
   case TOKEN_EOF: {
     /* Need more tokens. */
@@ -107,15 +105,12 @@ static Ast *parse_expression(Token **tokens, int *cursor) {
   return NULL;
 }
 
-static Ast *parse_boolean(Token *tok) {
-  AstVal val;
-  assert(tok->kind == TOKEN_BOOL);
-  val.boolean = (strcmp(tok->literal, "#t") == 0 ? true : false);
-  return make_ast_node(AST_BOOL, val);
+static AstNode *parse_boolean(Token *tok) {
+  return make_ast_bool((strcmp(tok->literal, "#t") == 0 ? true : false));
 }
 
-static Ast *parse_char(Token *tok) {
-  AstVal val;
+static AstNode *parse_char(Token *tok) {
+  char c;
   assert(tok->kind == TOKEN_CHAR);
   /*
    * <character> -> #\ <any character>
@@ -126,28 +121,28 @@ static Ast *parse_char(Token *tok) {
    */
   if (strlen(tok->literal) == 3) {
     /* #\<any_char> */
-    val.char_ = tok->literal[2];
+    c = tok->literal[2];
   } else {
     if (strlen(tok->literal) >= 4 && tok->literal[2] == 'x') {
       /* Handle #\x<hex_scalar> */
-      val.char_ = (char)strtol(tok->literal, NULL, 16);
+      c = (char)strtol(tok->literal, NULL, 16);
     } else {
       /* Handle #\<character name> */
       /* TODO: Add more characters. */
       if (strcmp(tok->literal, "#\\alarm") == 0) {
-        val.char_ = 7;
+        c = 7;
       } else if (strcmp(tok->literal, "#\\backspace") == 0) {
-        val.char_ = 8;
+        c = 8;
       } else if (strcmp(tok->literal, "#\\delete") == 0) {
-        val.char_ = 127;
+        c = 127;
       } else if (strcmp(tok->literal, "#\\newline") == 0) {
-        val.char_ = 10;
+        c = 10;
       } else if (strcmp(tok->literal, "#\\return") == 0) {
-        val.char_ = 13;
+        c = 13;
       } else if (strcmp(tok->literal, "#\\space") == 0) {
-        val.char_ = 32;
+        c = 32;
       } else if (strcmp(tok->literal, "#\\tab") == 0) {
-        val.char_ = 9;
+        c = 9;
       } else {
         /* Otherwise, Raise error. */
         fprintf(stderr, "%s: Error\n", __FUNCTION__);
@@ -156,19 +151,13 @@ static Ast *parse_char(Token *tok) {
     }
   }
 
-  return make_ast_node(AST_CHAR, val);
+  return make_ast_char(c);
 }
 
-static Ast *parse_number(Token *tok) {
-  AstVal val;
-  assert(tok->kind == TOKEN_NUMBER);
-  val.number = strtod(tok->literal, NULL);
-  return make_ast_node(AST_NUMBER, val);
+static AstNode *parse_number(Token *tok) {
+  return make_ast_number(strtod(tok->literal, NULL));
 }
 
-static Ast *parse_ident(Token *tok) {
-  AstVal val;
-  assert(tok->kind == TOKEN_IDENT);
-  val.ident = strdup(tok->literal);
-  return make_ast_node(AST_IDENT, val);
+static AstNode *parse_ident(Token *tok) {
+  return make_ast_ident(tok->literal);
 }

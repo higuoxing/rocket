@@ -51,7 +51,7 @@ extern int add_constant(ConstantPool *constant_pool, Value val);
 extern void vm_init(void);
 extern void free_vm(VM *vm);
 
-extern int compile(Ast *expr);
+extern int compile(AstNode *expr);
 extern Result interpret(Chunk *chunk, ConstantPool *constant_pool);
 
 #endif

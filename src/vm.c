@@ -85,7 +85,7 @@ Result interpret(Chunk *chunk, ConstantPool *constant_pool) {
   return run();
 }
 
-int compile(Ast *expr) {
+int compile(AstNode *expr) {
   switch (expr->kind) {
   case AST_BOOL:
   case AST_NUMBER:

@@ -1,10 +1,8 @@
 #ifndef _AST_H_
 #define _AST_H_
 
+#include "common.h"
 #include "vector.h"
-#include <stdbool.h>
-
-struct AstNode;
 
 typedef enum AstKind {
   AST_BOOL,
@@ -15,39 +13,44 @@ typedef enum AstKind {
   AST_CONS,
 } AstKind;
 
-typedef struct Cons {
-  void *car;
-  void *cdr;
-} Cons;
-
-typedef struct ProcCall {
-  struct AstNode *callable;
-  Vector *args;
-} ProcCall;
-
-typedef union AstVal {
-  /* AK_Boolean */
-  bool boolean;
-  /* AK_Char */
-  char char_;
-  /* AK_Number */
-  double number;
-  /* AK_Ident */
-  char *ident;
-  /* AK_Cons */
-  Cons *cons;
-  /* AK_ProcCall */
-  ProcCall proc_call;
-} AstVal;
-
 typedef struct AstNode {
   AstKind kind;
-  AstVal val;
-} Ast;
+} AstNode;
 
-extern Cons *make_cons(void *car, void *cdr);
-extern Cons *list_reverse(Cons *list);
-extern Ast *make_ast_node(AstKind kind, AstVal val);
-extern void free_ast_node(Ast *node);
+typedef struct AstBool {
+  AstNode base;
+  bool boolean;
+} AstBool;
+
+typedef struct AstChar {
+  AstNode base;
+  char char_;
+} AstChar;
+
+typedef struct AstNumber {
+  AstNode base;
+  double number;
+} AstNumber;
+
+typedef struct AstIdent {
+  AstNode base;
+  char *ident;
+} AstIdent;
+
+typedef struct AstProcCall {
+  AstNode base;
+  AstNode *callable;
+  Vector *args;
+} AstProcCall;
+
+// extern Cons *make_cons(void *car, void *cdr);
+// extern Cons *list_reverse(Cons *list);
+
+extern AstNode *make_ast_bool(bool b);
+extern AstNode *make_ast_char(char c);
+extern AstNode *make_ast_number(double d);
+extern AstNode *make_ast_ident(const char *id);
+extern AstNode *make_ast_proc_call(AstNode *callable, Vector *args);
+extern void free_ast_node(AstNode *node);
 
 #endif

@@ -7,40 +7,31 @@
 
 #define PROMPT_STYLE "> "
 
-static void dump_ast(Ast *ast) {
+static void dump_ast(AstNode *ast) {
   if (ast) {
     switch (ast->kind) {
     case AST_BOOL: {
-      fprintf(stdout, "<bool>: %s\n", ast->val.boolean ? "#t" : "#f");
+      fprintf(stdout, "<bool>: %s\n", ((AstBool *)ast)->boolean ? "#t" : "#f");
       break;
     }
     case AST_CHAR: {
-      fprintf(stdout, "<char>: %c\n", ast->val.char_);
+      fprintf(stdout, "<char>: %c\n", ((AstChar *)ast)->char_);
       break;
     }
     case AST_NUMBER: {
-      fprintf(stdout, "<number>: %.2f\n", ast->val.number);
-      break;
-    }
-    case AST_CONS: {
-      Cons *cons = ast->val.cons;
-
-      while (cons) {
-        dump_ast(cons->car);
-        cons = cons->cdr;
-      }
+      fprintf(stdout, "<number>: %.2f\n", ((AstNumber *)ast)->number);
       break;
     }
     case AST_IDENT: {
-      fprintf(stdout, "<ident>: %s\n", ast->val.ident);
+      fprintf(stdout, "<ident>: %s\n", ((AstIdent *)ast)->ident);
       break;
     }
     case AST_PROC_CALL: {
       fprintf(stdout, "<proc_call>: ");
-      dump_ast(ast->val.proc_call.callable);
-      for (int i = 0; i < vector_len(ast->val.proc_call.args); ++i) {
+      dump_ast(((AstProcCall *)ast)->callable);
+      for (int i = 0; i < vector_len(((AstProcCall *)ast)->args); ++i) {
         fprintf(stdout, "             ");
-        dump_ast((Ast *)DatumGetPtr(vector_get(ast->val.proc_call.args, i)));
+        dump_ast((AstNode *)DatumGetPtr(vector_get(((AstProcCall *)ast)->args, i)));
       }
       fprintf(stdout, "\n");
       break;
