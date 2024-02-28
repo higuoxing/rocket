@@ -39,9 +39,7 @@
     return vec->items;                                                         \
   }                                                                            \
   Type name##_get(Name *vec, int index) {                                      \
-    if (index < 0 || index >= vec->len) {                                      \
-      return Type##_null;                                                      \
-    }                                                                          \
+    assert(index >= 0 && index < vec->len);                                    \
     return vec->items[index];                                                  \
   }                                                                            \
   bool name##_set(Name *vec, int index, Type item) {                           \
@@ -67,8 +65,12 @@
       return;                                                                  \
     vec->items[index] = Type##_null;                                           \
     for (int i = index; i < vec->len; ++i) {                                   \
-      vec->items[i] = vec->items[i + 1];                                       \
-      vec->items[i + 1] = Type##_null;                                         \
+      if (i != vec->len - 1) {                                                 \
+        vec->items[i] = vec->items[i + 1];                                     \
+        vec->items[i + 1] = Type##_null;                                       \
+      } else {                                                                 \
+        vec->items[i] = Type##_null;                                           \
+      }                                                                        \
     }                                                                          \
     vec->len -= 1;                                                             \
     if (vec->len > 0 && vec->cap > VECTOR_DEFAULT_INIT_SIZE &&                 \

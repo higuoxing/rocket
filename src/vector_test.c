@@ -22,6 +22,7 @@ int main() {
     double_array_delete(vec, i);
   assert(vec->cap == 32);
   assert(double_array_len(vec) == 0);
+  free_double_array(vec);
 
   Buffer *vec_buff = make_buffer();
   assert(buffer_len(vec_buff) == 0);
@@ -30,4 +31,5 @@ int main() {
   buffer_append(vec_buff, 'c');
   buffer_append(vec_buff, '\0');
   assert(strcmp((char *)buffer_data(vec_buff), "abc") == 0);
+  free_buffer(vec_buff);
 }

@@ -31,7 +31,8 @@ static void dump_ast(AstNode *ast) {
       dump_ast(((AstProcCall *)ast)->callable);
       for (int i = 0; i < vector_len(((AstProcCall *)ast)->args); ++i) {
         fprintf(stdout, "             ");
-        dump_ast((AstNode *)DatumGetPtr(vector_get(((AstProcCall *)ast)->args, i)));
+        dump_ast(
+            (AstNode *)DatumGetPtr(vector_get(((AstProcCall *)ast)->args, i)));
       }
       fprintf(stdout, "\n");
       break;
@@ -99,8 +100,16 @@ static int rocket_main(int argc, char **argv) {
     }
     free_vector(tokens);
 
+    for (int i = 0; i < vector_len(program); ++i) {
+      AstNode *ast = DatumGetPtr(vector_get(program, i));
+      if (ast)
+	free_ast_node(ast);
+    }
+    free_vector(program);
+
     free(line);
     line = NULL;
+    break;
   }
 
   return 0;

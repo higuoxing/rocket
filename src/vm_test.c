@@ -54,6 +54,7 @@ int main() {
   disassemble_chunk(chunk, constant_pool, "test_chunk");
   vm_init();
   interpret(chunk, constant_pool);
-  free_chunk(chunk);
+  // free_chunk(chunk);
+  // free_constant_pool(constant_pool);
   return 0;
 }

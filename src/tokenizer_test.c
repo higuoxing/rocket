@@ -7,6 +7,9 @@ int main() {
   {
     Vector *tokens = tokenize("  ", "");
     assert(((Token *)vector_get(tokens, 0))->kind == TOKEN_EOF);
+    for (int i = 0; i < tokens->len; ++i)
+      free_token((Token *)tokens->items[i]);
+    free_vector(tokens);
   }
 
   {
@@ -20,6 +23,9 @@ int main() {
     assert(((Token *)vector_get(tokens, 6))->kind == TOKEN_RPAREN);
     assert(((Token *)vector_get(tokens, 7))->kind == TOKEN_RPAREN);
     assert(((Token *)vector_get(tokens, 8))->kind == TOKEN_EOF);
+    for (int i = 0; i < tokens->len; ++i)
+      free_token((Token *)tokens->items[i]);
+    free_vector(tokens);
   }
 
   {
@@ -34,6 +40,9 @@ int main() {
     assert(((Token *)vector_get(tokens, 6))->kind == TOKEN_IDENT);
     assert(((Token *)vector_get(tokens, 7))->kind == TOKEN_RPAREN);
     assert(((Token *)vector_get(tokens, 8))->kind == TOKEN_EOF);
+    for (int i = 0; i < tokens->len; ++i)
+      free_token((Token *)tokens->items[i]);
+    free_vector(tokens);
   }
 
   {
@@ -48,5 +57,8 @@ int main() {
     assert(((Token *)vector_get(tokens, 6))->kind == TOKEN_NUMBER);
     assert(((Token *)vector_get(tokens, 7))->kind == TOKEN_RPAREN);
     assert(((Token *)vector_get(tokens, 8))->kind == TOKEN_EOF);
+    for (int i = 0; i < tokens->len; ++i)
+      free_token((Token *)tokens->items[i]);
+    free_vector(tokens);
   }
 }
