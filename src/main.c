@@ -1,9 +1,13 @@
 #include "common.h"
 
 #include "ast.h"
+#include "compiler.h"
 #include "parser.h"
 #include "tokenizer.h"
 #include "vector.h"
+#include "vm.h"
+#include <assert.h>
+#include <stdio.h>
 
 #define PROMPT_STYLE "> "
 
@@ -86,12 +90,44 @@ static int rocket_main(int argc, char **argv) {
 
     Vector *tokens = tokenize(line, "<stdin>");
     int num_tokens = vector_len(tokens);
-    Vector *program = NULL;
+    Vector *program = parse_program(tokens);
+    Compiler *compiler = make_compiler();
+    VM *vm = NULL;
 
-    program = parse_program(tokens);
-
+#if 0
     for (int i = 0; i < vector_len(program); ++i) {
       dump_ast(DatumGetPtr(vector_get(program, i)));
+    }
+#endif
+
+    /*
+     * TODO: Add support for executing multiple expressions.
+     */
+    assert(vector_len(program) == 1);
+    for (int i = 0; i < vector_len(program); ++i) {
+      assert(compile_expression(compiler, DatumGetPtr(vector_get(
+                                              program, i))) == COMPILE_SUCCESS);
+    }
+    vm = make_vm(compiler_give_out_instructions(compiler),
+                 compiler_give_out_constants(compiler), NULL);
+    vm_run(vm);
+
+    int stack_top = vm->stack_pointer;
+    switch (vm->stack[stack_top - 1].type) {
+    case VAL_BOOL: {
+      fprintf(stdout, "%s\n",
+              DatumGetBool(vm->stack[stack_top - 1].value) ? "#t" : "#f");
+      break;
+    }
+    case VAL_NUMBER: {
+      fprintf(stdout, "%.4f\n", DatumGetFloat(vm->stack[stack_top - 1].value));
+      break;
+    }
+    default: {
+      fprintf(stderr, "%s: unrecognized value type: %d\n", __FUNCTION__,
+              vm->stack[stack_top - 1].type);
+      exit(1);
+    }
     }
 
     /* Clean up. */
@@ -103,9 +139,11 @@ static int rocket_main(int argc, char **argv) {
     for (int i = 0; i < vector_len(program); ++i) {
       AstNode *ast = DatumGetPtr(vector_get(program, i));
       if (ast)
-	free_ast_node(ast);
+        free_ast_node(ast);
     }
     free_vector(program);
+    free_compiler(compiler);
+    free_vm(vm);
 
     free(line);
     line = NULL;

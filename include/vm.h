@@ -6,16 +6,18 @@
 #include "ast.h"
 #include "vector.h"
 
-#define CHUNK_CODE_DEFAULT_INIT_SIZE 32
 #define VM_STACK_MAX_DEPTH 256
+#define VM_FRAME_MAX_DEPTH 256
 
 typedef enum OpCode {
   OP_CONSTANT,
   OP_PROC_CALL,
   OP_RETURN,
+  OP_LAST,
 } OpCode;
 
 typedef enum ValueType {
+  VAL_NIL = 0,
   VAL_BOOL,
   VAL_NUMBER,
 } ValueType;
@@ -25,33 +27,48 @@ typedef struct Value {
   Datum value;
 } Value;
 
-VECTOR_GENERATE_TYPE_NAME(Value, ConstantPool, constant_pool);
-VECTOR_GENERATE_TYPE_NAME(uint8_t, Chunk, chunk);
+VECTOR_GENERATE_TYPE_NAME(Value, ValuesPool, values_pool);
+VECTOR_GENERATE_TYPE_NAME(uint8_t, Instructions, instructions);
+
+typedef struct CompiledFunction {
+  Instructions *instructions;
+  /* Local variables are stored on VM::stack. */
+  int num_locals;
+} CompiledFunction;
+
+typedef struct Frame {
+  uint8_t *ip; /* Instruction pointer */
+  CompiledFunction *fn;
+  uint32_t base_pointer;
+} Frame;
 
 typedef struct VM {
-  Chunk *code;
-  ConstantPool *constant_pool;
-  uint8_t *ip; /* instruction pointer */
+  uint32_t stack_pointer; /* Offset into the stack array. */
+  uint32_t frame_pointer; /* Offset into the frames array. */
+  Frame frames[VM_FRAME_MAX_DEPTH];
   Value stack[VM_STACK_MAX_DEPTH];
-  Value *sp; /* stack pointer */
+  ValuesPool *constants;
+  ValuesPool *globals;
+  ValuesPool *heap;
 } VM;
 
-typedef enum Status {
-  STATUS_OK,
-  STATUS_ERR,
-} ResultStatus;
+typedef enum InterpretResult {
+  INTERPRET_OK,
+} InterpretResult;
 
-typedef struct Result {
-  ResultStatus status;
-  Datum val;
-} Result;
+static inline uint32_t values_pool_add_constant(ValuesPool *values_pool,
+                                                Value val) {
+  values_pool_append(values_pool, val);
+  return values_pool_len(values_pool) - 1;
+}
 
-extern void write_byte(Chunk *chunk, uint8_t insn);
-extern int add_constant(ConstantPool *constant_pool, Value val);
-extern void vm_init(void);
+extern VM *make_vm(Instructions *instructions, ValuesPool *constants,
+                   ValuesPool *globals);
+extern InterpretResult vm_run(VM *vm);
 extern void free_vm(VM *vm);
 
-extern int compile(AstNode *expr);
-extern Result interpret(Chunk *chunk, ConstantPool *constant_pool);
+extern CompiledFunction *make_compiled_function(Instructions *instrs,
+                                                int num_locals);
+extern void free_compiled_function(CompiledFunction *compiled_fn);
 
 #endif
