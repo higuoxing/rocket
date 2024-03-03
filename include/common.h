@@ -13,6 +13,8 @@
 #include <readline/history.h>
 #include <readline/readline.h>
 
+#define BLKSZ 1024
+
 typedef uintptr_t Datum;
 
 #define BoolGetDatum(b) ((Datum)b)

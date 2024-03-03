@@ -6,8 +6,6 @@ set(CMAKE_C_COMPILER clang)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS}")
 set(CMAKE_BUILD_TYPE "Debug")
-add_compile_options(-fsanitize=address)
-add_link_options(-fsanitize=address)
 
 set(CMAKE_INSTALL_PREFIX ${PROJECT_SOURCE_DIR})
 
@@ -19,4 +17,4 @@ include_directories(${ROCKET_INSTALL_INCLUDE_DIR})
 
 enable_testing()
 add_subdirectory(src)
-# add_subdirectory(test)
+add_subdirectory(tests)
