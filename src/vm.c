@@ -8,38 +8,34 @@
 #include "vector.h"
 #include "vm.h"
 
-VECTOR_GENERATE_TYPE_NAME_IMPL(Value, ValuesPool, values_pool);
+VECTOR_GENERATE_TYPE_NAME_IMPL(Object, ObjectsPool, objects_pool);
 VECTOR_GENERATE_TYPE_NAME_IMPL(uint8_t, Instructions, instructions);
 
 static inline Frame *vm_current_frame(VM *vm) {
   return &vm->frames[vm->frame_pointer];
 }
 
-VM *make_vm(Instructions *instructions, ValuesPool *constants,
-            ValuesPool *globals) {
-  VM *vm = malloc(sizeof(VM));
+void initialize_vm(VM* vm, Instructions *instructions, ObjectsPool *constants,
+            ObjectsPool *globals) {
   assert(vm != NULL);
   assert(instructions);
 
   vm->stack_pointer = 0;
   vm->frame_pointer = 0;
 
-  vm->globals = globals ? globals : make_values_pool();
-  vm->constants = constants ? constants : make_values_pool();
-  vm->heap = make_values_pool();
+  vm->globals = globals ? globals : make_objects_pool();
+  vm->constants = constants ? constants : make_objects_pool();
+  vm->heap = make_objects_pool();
 
   vm->frames[0].base_pointer = 0;
   vm->frames[0].fn = make_compiled_function(instructions, 0);
   vm->frames[0].ip = instructions_data(vm->frames[0].fn->instructions);
-
-  return vm;
 }
 
-void free_vm(VM *vm) {
-  free_values_pool(vm->globals);
-  free_values_pool(vm->constants);
-  free_values_pool(vm->heap);
-  free(vm);
+void destroy_vm(VM *vm) {
+  free_objects_pool(vm->globals);
+  free_objects_pool(vm->constants);
+  free_objects_pool(vm->heap);
 }
 
 InterpretResult vm_run(VM *vm) {
@@ -51,7 +47,7 @@ InterpretResult vm_run(VM *vm) {
       ++frame->ip;
       int constant_idx = *frame->ip;
       vm->stack[vm->stack_pointer++] =
-          values_pool_get(vm->constants, constant_idx);
+          objects_pool_get(vm->constants, constant_idx);
       ++frame->ip;
       continue;
     }

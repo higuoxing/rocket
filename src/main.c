@@ -92,7 +92,7 @@ static int rocket_main(int argc, char **argv) {
     int num_tokens = vector_len(tokens);
     Vector *program = parse_program(tokens);
     Compiler *compiler = make_compiler();
-    VM *vm = NULL;
+    VM vm;
 
 #if 0
     for (int i = 0; i < vector_len(program); ++i) {
@@ -108,24 +108,24 @@ static int rocket_main(int argc, char **argv) {
       assert(compile_expression(compiler, DatumGetPtr(vector_get(
                                               program, i))) == COMPILE_SUCCESS);
     }
-    vm = make_vm(compiler_give_out_instructions(compiler),
-                 compiler_give_out_constants(compiler), NULL);
-    vm_run(vm);
+    initialize_vm(&vm, compiler_give_out_instructions(compiler),
+                  compiler_give_out_constants(compiler), NULL);
+    vm_run(&vm);
 
-    int stack_top = vm->stack_pointer;
-    switch (vm->stack[stack_top - 1].type) {
-    case VAL_BOOL: {
+    int stack_top = vm.stack_pointer;
+    switch (vm.stack[stack_top - 1].type) {
+    case OBJ_BOOL: {
       fprintf(stdout, "%s\n",
-              DatumGetBool(vm->stack[stack_top - 1].value) ? "#t" : "#f");
+              DatumGetBool(vm.stack[stack_top - 1].value) ? "#t" : "#f");
       break;
     }
-    case VAL_NUMBER: {
-      fprintf(stdout, "%.4f\n", DatumGetFloat(vm->stack[stack_top - 1].value));
+    case OBJ_NUMBER: {
+      fprintf(stdout, "%.4f\n", DatumGetFloat(vm.stack[stack_top - 1].value));
       break;
     }
     default: {
       fprintf(stderr, "%s: unrecognized value type: %d\n", __FUNCTION__,
-              vm->stack[stack_top - 1].type);
+              vm.stack[stack_top - 1].type);
       exit(1);
     }
     }
@@ -143,7 +143,7 @@ static int rocket_main(int argc, char **argv) {
     }
     free_vector(program);
     free_compiler(compiler);
-    free_vm(vm);
+    destroy_vm(&vm);
 
     free(line);
     line = NULL;

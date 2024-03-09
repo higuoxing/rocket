@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "ast.h"
+#include "object.h"
 #include "vector.h"
 
 #define VM_STACK_MAX_DEPTH 256
@@ -16,18 +17,7 @@ typedef enum OpCode {
   OP_LAST,
 } OpCode;
 
-typedef enum ValueType {
-  VAL_NIL = 0,
-  VAL_BOOL,
-  VAL_NUMBER,
-} ValueType;
-
-typedef struct Value {
-  ValueType type;
-  Datum value;
-} Value;
-
-VECTOR_GENERATE_TYPE_NAME(Value, ValuesPool, values_pool);
+VECTOR_GENERATE_TYPE_NAME(Object, ObjectsPool, objects_pool);
 VECTOR_GENERATE_TYPE_NAME(uint8_t, Instructions, instructions);
 
 typedef struct CompiledFunction {
@@ -46,26 +36,26 @@ typedef struct VM {
   uint32_t stack_pointer; /* Offset into the stack array. */
   uint32_t frame_pointer; /* Offset into the frames array. */
   Frame frames[VM_FRAME_MAX_DEPTH];
-  Value stack[VM_STACK_MAX_DEPTH];
-  ValuesPool *constants;
-  ValuesPool *globals;
-  ValuesPool *heap;
+  Object stack[VM_STACK_MAX_DEPTH];
+  ObjectsPool *constants;
+  ObjectsPool *globals;
+  ObjectsPool *heap;
 } VM;
 
 typedef enum InterpretResult {
   INTERPRET_OK,
 } InterpretResult;
 
-static inline uint32_t values_pool_add_constant(ValuesPool *values_pool,
-                                                Value val) {
-  values_pool_append(values_pool, val);
-  return values_pool_len(values_pool) - 1;
+static inline uint32_t objects_pool_add_constant(ObjectsPool *objects_pool,
+                                                 Object val) {
+  objects_pool_append(objects_pool, val);
+  return objects_pool_len(objects_pool) - 1;
 }
 
-extern VM *make_vm(Instructions *instructions, ValuesPool *constants,
-                   ValuesPool *globals);
+extern void initialize_vm(VM *vm, Instructions *instructions,
+                          ObjectsPool *constants, ObjectsPool *globals);
 extern InterpretResult vm_run(VM *vm);
-extern void free_vm(VM *vm);
+extern void destroy_vm(VM *vm);
 
 extern CompiledFunction *make_compiled_function(Instructions *instrs,
                                                 int num_locals);

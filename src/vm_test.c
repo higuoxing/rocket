@@ -5,6 +5,7 @@
 #include "vm.h"
 
 int main() {
-  VM *vm = make_vm(make_instructions(), /*constants=*/NULL, /*globals=*/NULL);
-  free_vm(vm);
+  VM vm;
+  initialize_vm(&vm,make_instructions(), /*constants=*/NULL, /*globals=*/NULL);
+  destroy_vm(&vm);
 }
