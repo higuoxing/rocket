@@ -15,8 +15,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define BLKSZ 1024
-
 static int flag_dump_tokens = false;
 static char *tokens_output_file = NULL;
 static int flag_dump_ast = false;
@@ -210,9 +208,10 @@ static void rocket_parse_command_args(int argc, char **argv) {
   }
 }
 
-static void dump_tokens(const char *output_file_name, Vector *tokens) {
+static void dump_tokens(const char *output_file_name, Tokenizer *tokenizer) {
   int i = 0;
   FILE *output_file = NULL;
+  Token *tok = NULL;
 
   if (output_file_name) {
     output_file = fopen(output_file_name, "w+");
@@ -222,9 +221,8 @@ static void dump_tokens(const char *output_file_name, Vector *tokens) {
       exit(1);
     }
   }
-  for (Token *tok = (Token *)DatumGetPtr(vector_get(tokens, i));
-       tok && tok->kind != TOKEN_EOF;
-       tok = (Token *)DatumGetPtr(vector_get(tokens, ++i))) {
+
+  while ((tok = tokenizer_next(tokenizer)) != NULL) {
     fprintf(output_file ? output_file : stderr, "(%d:%d) %s: %s\n",
             tok->loc.line, tok->loc.column, token_kind_str(tok),
             tok->literal ? tok->literal : "");
@@ -238,26 +236,20 @@ static int rocket_main(int argc, char **argv) {
   char *script = NULL;
   Vector *tokens = NULL;
   char *script_name;
+  Tokenizer tokenizer;
 
   rocket_parse_command_args(argc, argv);
 
   script_name = argv[optind];
-  script = read_file(script_name);
-
-  tokens = tokenize(script, script_name);
-  free(script);
+  reset_tokenizer(&tokenizer, script_name);
 
   if (flag_dump_tokens) {
-    dump_tokens(tokens_output_file, tokens);
+    dump_tokens(tokens_output_file, &tokenizer);
   }
 
   if (flag_dump_ast) {
     dump_ast(NULL);
   }
-
-  for (int i = 0; i < vector_len(tokens); ++i)
-    free_token(DatumGetPtr(vector_get(tokens, i)));
-  free_vector(tokens);
 
   return 0;
 }
