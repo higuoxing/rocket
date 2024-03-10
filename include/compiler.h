@@ -12,6 +12,8 @@ typedef struct Compiler {
 
 typedef enum CompilerErr { COMPILE_SUCCESS } CompilerErr;
 
+extern void initialize_compiler(Compiler *c);
+extern void destroy_compiler(Compiler *c);
 extern Compiler *make_compiler(void);
 extern CompilerErr compile_expression(Compiler *c, AstNode *ast);
 extern uint32_t compiler_add_constant(Compiler *c, Object val);

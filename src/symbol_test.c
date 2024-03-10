@@ -15,4 +15,7 @@ int main() {
   assert(exists);
   assert(symbol_table_find(symbol_table, "bar", &exists).type == OBJ_NIL);
   assert(!exists);
+  for (int i = 0; i < symbol_table_len(symbol_table); ++i)
+    free(symbol_table_get(symbol_table, i).symbol_name);
+  free_symbol_table(symbol_table);
 }

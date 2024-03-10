@@ -26,7 +26,6 @@ typedef enum TokenKind {
 } TokenKind;
 
 typedef struct TokenLoc {
-  const char *file;
   int line;
   int column;
 } TokenLoc;
@@ -44,7 +43,8 @@ typedef struct Token {
 extern Token *make_token(TokenKind kind, TokenLoc loc, const char *literal,
                          int tok_len);
 extern Vector *tokenize(const char *program, const char *filename);
-extern TokenKind token_kind(Token *tok);
+extern TokenKind token_kind(const Token *tok);
+extern const char *token_kind_str(const Token *tok);
 extern void free_token(Token *);
 
 #endif /* _TOKENIZER_H_ */

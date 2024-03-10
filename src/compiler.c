@@ -6,11 +6,9 @@
 #include "compiler.h"
 #include "vm.h"
 
-Compiler *make_compiler(void) {
-  Compiler *c = malloc(sizeof(Compiler));
+void initialize_compiler(Compiler *c) {
   c->constants = make_objects_pool();
   c->instructions = make_instructions();
-  return c;
 }
 
 CompilerErr compile_expression(Compiler *c, AstNode *ast) {
@@ -63,10 +61,9 @@ Instructions *compiler_give_out_instructions(Compiler *c) {
   return instructions;
 }
 
-void free_compiler(Compiler *c) {
+void destroy_compiler(Compiler *c) {
   if (c->constants)
     free_objects_pool(c->constants);
   if (c->instructions)
     free_instructions(c->instructions);
-  free(c);
 }
