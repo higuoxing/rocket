@@ -15,9 +15,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int flag_dump_tokens = false;
+static int flag_dump_tokens = 0;
 static char *tokens_output_file = NULL;
-static int flag_dump_ast = false;
+static int flag_dump_ast = 0;
 
 static void dump_ast(AstNode *ast) {
   //   if (ast) {
@@ -223,7 +223,7 @@ static void dump_tokens(const char *output_file_name, Tokenizer *tokenizer) {
   }
 
   while ((tok = tokenizer_next(tokenizer)) != NULL) {
-    fprintf(output_file ? output_file : stderr, "(%d:%d) %s: %s\n",
+    fprintf(output_file ? output_file : stdout, "(%d:%d) %s: %s\n",
             tok->loc.line, tok->loc.column, token_kind_str(tok),
             tok->literal ? tok->literal : "");
   }
