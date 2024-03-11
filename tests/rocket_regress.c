@@ -21,48 +21,12 @@ static char *read_file(const char *filename);
 static int exec_test_case(const char *path);
 
 enum {
-  WALK_OK = 0,
-  WALK_BADPATTERN,
-  WALK_NAMETOOLONG,
-  WALK_BADIO,
-  WALK_TEST_FAILED,
+  TEST_OK = 0,
+  TEST_BADPATTERN,
+  TEST_NAMETOOLONG,
+  TEST_BADIO,
+  TEST_FAILED,
 };
-
-static int exec_test_case(const char *path) {
-  char *test_content = read_file(path);
-  char **rest = &test_content;
-  char *line;
-  int res = 0;
-  int pathlen = strlen(path);
-  while ((line = strsep(rest, "\n")) != NULL) {
-    char *command_line;
-    char command[MAXPATH] = {'\0'};
-    if ((command_line = strstr(line, "RUN:")) != NULL) {
-      char *commandp = &command_line[sizeof("RUN:")];
-      int curr_res = 0;
-      char *p = commandp;
-      int i = 0;
-      while (*commandp && (*commandp == ' ' || *commandp == '\t'))
-        ++commandp;
-
-      /* Replace %s with the current file name. */
-      while (*p) {
-        if (strncmp(p, "%s", 2) == 0) {
-          strncpy(&command[i], path, pathlen);
-          p += 2;
-          i += pathlen;
-        } else {
-          command[i++] = *p;
-          ++p;
-        }
-      }
-
-      if ((curr_res = system(command)) != 0)
-        res = -1;
-    }
-  }
-  return res;
-}
 
 int main(int argc, char **argv) {
   int res;
@@ -71,13 +35,13 @@ int main(int argc, char **argv) {
 
   res = walk_dir(base_dir ? base_dir : "", ".\\.scm$", 0);
   switch (res) {
-  case WALK_OK:
+  case TEST_OK:
     break;
-  case WALK_BADPATTERN:
+  case TEST_BADPATTERN:
     errx(1, "bad pattern");
-  case WALK_NAMETOOLONG:
+  case TEST_NAMETOOLONG:
     errx(1, "file name too long");
-  case WALK_TEST_FAILED:
+  case TEST_FAILED:
     errx(1, "test failed");
   default:
     errx(1, "unknown error");
@@ -119,11 +83,11 @@ static int walk_recur(const char *dir_name, regex_t *regex, int spec) {
   DIR *dir;
   struct stat st;
   char fn[MAXPATH];
-  int res = WALK_OK;
+  int res = TEST_OK;
   int len = strlen(dir_name);
 
   if (len >= MAXPATH) {
-    return WALK_NAMETOOLONG;
+    return TEST_NAMETOOLONG;
   }
 
   strcpy(fn, dir_name);
@@ -131,7 +95,7 @@ static int walk_recur(const char *dir_name, regex_t *regex, int spec) {
 
   if (!(dir = opendir(dir_name))) {
     warnx("could not open directory \"%s\"", dir_name);
-    return WALK_BADIO;
+    return TEST_BADIO;
   }
 
   errno = 0;
@@ -143,7 +107,7 @@ static int walk_recur(const char *dir_name, regex_t *regex, int spec) {
     strncpy(fn + len, dir_ent->d_name, MAXPATH - len);
     if (lstat(fn, &st) == -1) {
       warnx("could not stat file \"%s\"", fn);
-      res = WALK_BADIO;
+      res = TEST_BADIO;
       continue;
     }
 
@@ -152,9 +116,13 @@ static int walk_recur(const char *dir_name, regex_t *regex, int spec) {
     }
 
     if (regexec(regex, fn, 0, 0, 0) == 0) {
-      if (exec_test_case(fn) != 0) {
-        fprintf(stderr, "test: \"%s\" failed\n", fn);
-        res = WALK_TEST_FAILED;
+      int exec_res;
+      if ((exec_res = exec_test_case(fn)) != 0) {
+        fprintf(stderr, "test: %s failed\n", fn);
+        res = exec_res;
+        continue;
+      } else {
+        fprintf(stdout, "test: %s ok\n", fn);
         continue;
       }
     }
@@ -163,14 +131,14 @@ static int walk_recur(const char *dir_name, regex_t *regex, int spec) {
   if (dir)
     closedir(dir);
 
-  return res ? res : errno ? WALK_BADIO : WALK_OK;
+  return res ? res : errno ? TEST_BADIO : TEST_OK;
 }
 
 static int walk_dir(char *dir_name, char *pattern, int spec) {
   regex_t r;
   int res;
   if (regcomp(&r, pattern, REG_EXTENDED | REG_NOSUB))
-    return WALK_BADPATTERN;
+    return TEST_BADPATTERN;
   res = walk_recur(dir_name, &r, spec);
   regfree(&r);
   return res;
@@ -204,4 +172,53 @@ static char *read_file(const char *filename) {
 
   fclose(script_file);
   return script;
+}
+
+static int exec_test_case(const char *path) {
+  char *test_content = read_file(path);
+  char **rest = &test_content;
+  char *line;
+  int res = 0;
+  int pathlen = strlen(path);
+  while ((line = strsep(rest, "\n")) != NULL) {
+    char *command_line;
+    char command[MAXPATH] = {'\0'};
+    if ((command_line = strstr(line, "RUN:")) != NULL) {
+      char *commandp = &command_line[sizeof("RUN:")];
+      int curr_res = 0;
+      char *p = commandp;
+      int i = 0;
+
+      /* Skip whitespaces */
+      while (*commandp == ' ' || *commandp == '\t')
+        ++commandp;
+
+      /* Replace %s with the current file name. */
+      while (*p) {
+        if (strncmp(p, "%s", 2) == 0) {
+          if (i + pathlen >= MAXPATH) {
+            res = TEST_NAMETOOLONG;
+            goto out;
+          }
+          strncpy(&command[i], path, pathlen);
+          p += 2;
+          i += pathlen;
+        } else {
+          if (i + 1 >= MAXPATH) {
+            res = TEST_NAMETOOLONG;
+            goto out;
+          }
+          command[i++] = *p;
+          ++p;
+        }
+      }
+
+      if ((curr_res = system(command)) != 0)
+        res = TEST_FAILED;
+    }
+  }
+
+out:
+  free(test_content);
+  return res;
 }
