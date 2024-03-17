@@ -5,6 +5,6 @@
 #include "tokenizer.h"
 #include "vector.h"
 
-extern Vector *parse_program(TokenIter *iter);
+extern Vector *parse_program(Tokenizer *tokenizer);
 
 #endif

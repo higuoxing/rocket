@@ -5,13 +5,13 @@
 #include "vector.h"
 
 typedef enum AstKind {
-  AST_BOOL,
-  AST_CHAR,
-  AST_NUMBER,
-  AST_IDENT,
-  AST_PROC_CALL,
-  AST_QUOTE,
-  AST_CONS,
+  AST_BOOL = 0,
+  AST_CHAR = 1,
+  AST_NUMBER = 2,
+  AST_IDENT = 3,
+  AST_PROC_CALL = 4,
+  AST_QUOTE = 5,
+  AST_CONS = 6,
 } AstKind;
 
 typedef struct AstNode {

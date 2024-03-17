@@ -18,13 +18,14 @@ static AstNode *parse_expression(TokenIter *iter);
 #define CURR_TOKEN(iter) (token_iter_peek(iter))
 #define NEXT_TOKEN(iter) (token_iter_next(iter))
 
-Vector *parse_program(TokenIter *iter) {
+Vector *parse_program(Tokenizer *tokenizer) {
   int cursor = 0;
   Token *tok;
+  TokenIter iter = tokenizer_iter(tokenizer);
   Vector *program = make_vector();
 
-  while (CURR_TOKEN(iter)->kind != TOKEN_EOF) {
-    AstNode *expr = parse_expression(iter);
+  while (CURR_TOKEN(&iter)->kind != TOKEN_EOF) {
+    AstNode *expr = parse_expression(&iter);
     vector_append(program, PointerGetDatum(expr));
   }
 
