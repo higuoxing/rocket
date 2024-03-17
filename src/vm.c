@@ -15,8 +15,8 @@ static inline Frame *vm_current_frame(VM *vm) {
   return &vm->frames[vm->frame_pointer];
 }
 
-void initialize_vm(VM* vm, Instructions *instructions, ObjectsPool *constants,
-            ObjectsPool *globals) {
+void initialize_vm(VM *vm, Instructions *instructions, ObjectsPool *constants,
+                   ObjectsPool *globals) {
   assert(vm != NULL);
   assert(instructions);
 
@@ -38,14 +38,15 @@ void destroy_vm(VM *vm) {
   free_objects_pool(vm->heap);
 }
 
-InterpretResult vm_run(VM *vm) {
+EvalResult vm_run(VM *vm) {
   Frame *frame = vm_current_frame(vm);
 
   while (*frame->ip != OP_LAST) {
     switch (*frame->ip) {
     case OP_CONSTANT: {
+      int constant_idx;
       ++frame->ip;
-      int constant_idx = *frame->ip;
+      constant_idx = *frame->ip;
       vm->stack[vm->stack_pointer++] =
           objects_pool_get(vm->constants, constant_idx);
       ++frame->ip;
@@ -59,7 +60,7 @@ InterpretResult vm_run(VM *vm) {
     }
   }
 
-  return INTERPRET_OK;
+  return EVAL_OK;
 }
 
 CompiledFunction *make_compiled_function(Instructions *instructions,

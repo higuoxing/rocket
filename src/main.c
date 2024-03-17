@@ -15,9 +15,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int flag_dump_tokens = 0;
+static int flag_debug_dump_tokens = 0;
 static char *tokens_output_file = NULL;
-static int flag_dump_ast = 0;
+static int flag_debug_dump_ast = 0;
 
 static void dump_ast(AstNode *ast) {
   //   if (ast) {
@@ -178,8 +178,8 @@ static void rocket_parse_command_args(int argc, char **argv) {
   int c;
   int option_index = 0;
   static struct option long_options[] = {
-      {"dump-tokens", optional_argument, &flag_dump_tokens, 1},
-      {"dump-ast", no_argument, &flag_dump_ast, 1},
+      {"debug-dump-tokens", optional_argument, &flag_debug_dump_tokens, 1},
+      {"debug-dump-ast", no_argument, &flag_debug_dump_ast, 1},
       {0, 0, 0, 0},
   };
 
@@ -208,7 +208,8 @@ static void rocket_parse_command_args(int argc, char **argv) {
   }
 }
 
-static void dump_tokens(const char *output_file_name, Tokenizer *tokenizer) {
+static void debug_dump_tokens(const char *output_file_name,
+                              Tokenizer *tokenizer) {
   int i = 0;
   FILE *output_file = NULL;
   Token *tok = NULL;
@@ -243,11 +244,11 @@ static int rocket_main(int argc, char **argv) {
   script_name = argv[optind];
   reset_tokenizer(&tokenizer, script_name);
 
-  if (flag_dump_tokens) {
-    dump_tokens(tokens_output_file, &tokenizer);
+  if (flag_debug_dump_tokens) {
+    debug_dump_tokens(tokens_output_file, &tokenizer);
   }
 
-  if (flag_dump_ast) {
+  if (flag_debug_dump_ast) {
     dump_ast(NULL);
   }
 

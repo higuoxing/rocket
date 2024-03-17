@@ -1,4 +1,4 @@
-;;; RUN: diff --color -u <(rsi --dump-tokens %s) <(cat %s.expected)
+;;; RUN: diff --color -u <(cat %s.expected) <(rsi --debug-dump-tokens %s 2>&1)
 ;;; Test cases for Scheme.
 ;;;
 ;;; In order to run only a prefix of these examples, add the line

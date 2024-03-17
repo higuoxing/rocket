@@ -42,9 +42,9 @@ typedef struct VM {
   ObjectsPool *heap;
 } VM;
 
-typedef enum InterpretResult {
-  INTERPRET_OK,
-} InterpretResult;
+typedef enum EvalResult {
+  EVAL_OK,
+} EvalResult;
 
 static inline uint32_t objects_pool_add_constant(ObjectsPool *objects_pool,
                                                  Object val) {
@@ -54,7 +54,7 @@ static inline uint32_t objects_pool_add_constant(ObjectsPool *objects_pool,
 
 extern void initialize_vm(VM *vm, Instructions *instructions,
                           ObjectsPool *constants, ObjectsPool *globals);
-extern InterpretResult vm_run(VM *vm);
+extern EvalResult vm_run(VM *vm);
 extern void destroy_vm(VM *vm);
 
 extern CompiledFunction *make_compiled_function(Instructions *instrs,

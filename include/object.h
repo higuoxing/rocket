@@ -4,6 +4,7 @@
 #include "common.h"
 
 typedef enum ObjectType {
+  OBJ_ERR = -1,
   OBJ_NIL = 0,
   OBJ_BOOL,
   OBJ_NUMBER,
@@ -13,6 +14,5 @@ typedef struct Object {
   ObjectType type;
   Datum value;
 } Object;
-
 
 #endif
