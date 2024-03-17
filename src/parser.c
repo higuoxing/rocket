@@ -5,48 +5,58 @@
 #include "tokenizer.h"
 #include "vector.h"
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 
 static AstNode *parse_boolean(Token *tok);
 static AstNode *parse_char(Token *tok);
 static AstNode *parse_number(Token *tok);
 static AstNode *parse_ident(Token *tok);
-static AstNode *parse_expression(Token **tokens, int *cursor);
+static AstNode *parse_quote(TokenIter *iter);
+static AstNode *parse_expression(TokenIter *iter);
 
-Vector *parse_program(Vector *tokens) {
+#define CURR_TOKEN(iter) (token_iter_peek(iter))
+#define NEXT_TOKEN(iter) (token_iter_next(iter))
+
+Vector *parse_program(TokenIter *iter) {
   int cursor = 0;
+  Token *tok;
   Vector *program = make_vector();
 
-  while (((Token *)vector_get(tokens, cursor))->kind != TOKEN_EOF) {
-    AstNode *expr = parse_expression((Token **)vector_data(tokens), &cursor);
+  while (CURR_TOKEN(iter)->kind != TOKEN_EOF) {
+    AstNode *expr = parse_expression(iter);
     vector_append(program, PointerGetDatum(expr));
   }
 
   return program;
 }
 
-static AstNode *parse_expression(Token **tokens, int *cursor) {
-  assert(tokens[*cursor]);
-  switch (tokens[*cursor]->kind) {
+static AstNode *parse_expression(TokenIter *iter) {
+  switch (CURR_TOKEN(iter)->kind) {
   case TOKEN_BOOL: {
-    AstNode *bool_ast = parse_boolean(tokens[*cursor]);
-    *cursor += 1;
+    AstNode *bool_ast = parse_boolean(CURR_TOKEN(iter));
+    NEXT_TOKEN(iter);
     return bool_ast;
   }
   case TOKEN_CHAR: {
-    AstNode *char_ast = parse_char(tokens[*cursor]);
-    *cursor += 1;
+    AstNode *char_ast = parse_char(CURR_TOKEN(iter));
+    NEXT_TOKEN(iter);
     return char_ast;
   }
   case TOKEN_NUMBER: {
-    AstNode *number_ast = parse_number(tokens[*cursor]);
-    *cursor += 1;
+    AstNode *number_ast = parse_number(CURR_TOKEN(iter));
+    NEXT_TOKEN(iter);
     return number_ast;
   }
   case TOKEN_IDENT: {
-    AstNode *ident_ast = parse_ident(tokens[*cursor]);
-    *cursor += 1;
+    AstNode *ident_ast = parse_ident(CURR_TOKEN(iter));
+    NEXT_TOKEN(iter);
     return ident_ast;
+  }
+  case TOKEN_QUOTE: {
+    NEXT_TOKEN(iter);
+    AstNode *quote_ast = parse_quote(iter);
+    return quote_ast;
   }
   case TOKEN_LPAREN: {
     AstNode *callable = NULL;
@@ -54,11 +64,11 @@ static AstNode *parse_expression(Token **tokens, int *cursor) {
     Vector *args = NULL;
 
     /* Consume '(' */
-    *cursor += 1;
+    NEXT_TOKEN(iter);
 
-    if (tokens[*cursor]->kind == TOKEN_RPAREN) {
+    if (CURR_TOKEN(iter)->kind == TOKEN_RPAREN) {
       /* Consume ')' */
-      *cursor += 1;
+      NEXT_TOKEN(iter);
       /* This is `()` (or nil), we return it directly. */
       return NULL;
     }
@@ -66,15 +76,15 @@ static AstNode *parse_expression(Token **tokens, int *cursor) {
     args = make_vector();
 
     /* Parse until ')' */
-    while (tokens[*cursor]->kind != TOKEN_RPAREN) {
+    while (CURR_TOKEN(iter)->kind != TOKEN_RPAREN) {
       AstNode *inner_ast = NULL;
-      if (tokens[*cursor]->kind == TOKEN_EOF) {
+      if (CURR_TOKEN(iter)->kind == TOKEN_EOF) {
         /* Need more tokens. */
         fprintf(stderr, "%s: Expected more tokens.", __FUNCTION__);
         exit(1);
       }
 
-      inner_ast = parse_expression(tokens, cursor);
+      inner_ast = parse_expression(iter);
 
       if (arg_index == 0) {
         callable = inner_ast;
@@ -86,19 +96,19 @@ static AstNode *parse_expression(Token **tokens, int *cursor) {
     }
 
     /* Consume ')' */
-    assert(tokens[*cursor]->kind == TOKEN_RPAREN);
-    *cursor += 1;
+    assert(CURR_TOKEN(iter)->kind == TOKEN_RPAREN);
+    NEXT_TOKEN(iter);
 
     return make_ast_proc_call(callable, args);
   }
   case TOKEN_EOF: {
     /* Need more tokens. */
-    fprintf(stderr, "%s: Expected more tokens.", __FUNCTION__);
+    fprintf(stderr, "%s: Expected more tokens.\n", __FUNCTION__);
     exit(1);
   }
   default: {
-    fprintf(stderr, "%s: Unexpected token kind (%d)", __FUNCTION__,
-            tokens[*cursor]->kind);
+    fprintf(stderr, "%s: Unexpected token kind (%d)\n", __FUNCTION__,
+            CURR_TOKEN(iter)->kind);
     exit(1);
   }
   }
@@ -160,4 +170,11 @@ static AstNode *parse_number(Token *tok) {
 
 static AstNode *parse_ident(Token *tok) {
   return make_ast_ident(tok->literal);
+}
+
+static AstNode *parse_quote(TokenIter *iter) {
+  AstQuote *quote_ast = malloc(sizeof(AstQuote));
+  quote_ast->base.kind = AST_QUOTE;
+  quote_ast->inner = parse_expression(iter);
+  return (AstNode *)quote_ast;
 }

@@ -7,19 +7,19 @@
 
 typedef enum TokenKind {
   /* '(' */
-  TOKEN_LPAREN,
+  TOKEN_LPAREN = 0,
   /* ')' */
-  TOKEN_RPAREN,
-  TOKEN_DOT,
+  TOKEN_RPAREN = 1,
+  TOKEN_DOT = 2,
   /* Identifier */
-  TOKEN_IDENT,
+  TOKEN_IDENT = 3,
   /* '\'' */
-  TOKEN_QUOTE,
+  TOKEN_QUOTE = 4,
   /* '`' */
-  TOKEN_BACKQUOTE,
-  TOKEN_BOOL,
-  TOKEN_CHAR,
-  TOKEN_NUMBER,
+  TOKEN_BACKQUOTE = 5,
+  TOKEN_BOOL = 6,
+  TOKEN_CHAR = 7,
+  TOKEN_NUMBER = 8,
 
   /* EOF */
   TOKEN_EOF,
@@ -49,10 +49,18 @@ typedef struct Tokenizer {
   Vector *tokens;
 } Tokenizer;
 
-extern void reset_tokenizer(Tokenizer *tokenizer, const char *filename);
+typedef struct TokenIter {
+  int index;
+  Tokenizer *tokenizer;
+} TokenIter;
+
+extern TokenIter tokenizer_iter(Tokenizer *tokenizer);
+extern Token *token_iter_peek(TokenIter *iter);
+extern Token *token_iter_next(TokenIter *iter);
+
+extern void initialize_tokenizer(Tokenizer *tokenizer, const char *filename,
+                                 char *program);
 extern void destroy_tokenizer(Tokenizer *tokenizer);
-extern Token *tokenizer_peek(Tokenizer *tokenizer);
-extern Token *tokenizer_next(Tokenizer *tokenizer);
 
 extern Token *make_token(TokenKind kind, TokenLoc loc, const char *literal,
                          int tok_len);

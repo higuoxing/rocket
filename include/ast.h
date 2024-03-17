@@ -10,6 +10,7 @@ typedef enum AstKind {
   AST_NUMBER,
   AST_IDENT,
   AST_PROC_CALL,
+  AST_QUOTE,
   AST_CONS,
 } AstKind;
 
@@ -42,6 +43,11 @@ typedef struct AstProcCall {
   AstNode *callable;
   Vector *args;
 } AstProcCall;
+
+typedef struct AstQuote {
+  AstNode base;
+  AstNode *inner;
+} AstQuote;
 
 // extern Cons *make_cons(void *car, void *cdr);
 // extern Cons *list_reverse(Cons *list);

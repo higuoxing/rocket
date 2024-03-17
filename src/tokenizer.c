@@ -2,7 +2,6 @@
 
 #include "tokenizer.h"
 #include "vector.h"
-#include <ctype.h>
 
 /*
  * <explicit_sign> -> + ∣ -
@@ -40,6 +39,8 @@
  */
 #define is_subsequent(c)                                                       \
   (is_initial(c) || isdigit(c) || is_special_subsequent(c))
+
+static Token *tokenizer_next(Tokenizer *tokenizer);
 
 Token *make_token(TokenKind kind, TokenLoc loc, const char *literal,
                   int tok_len) {
@@ -98,47 +99,13 @@ const char *token_kind_str(const Token *tok) {
   }
 }
 
-static char *read_file(const char *filename) {
-  char *script = malloc(BLKSZ);
-  FILE *script_file = NULL;
-  uint32_t total_read_size = 0;
-  uint32_t curr_read_size = 0;
-  uint32_t curr_buffer_size = BLKSZ;
-
-  if (!script) {
-    fprintf(stderr, "OOM! %m");
-    exit(1);
-  }
-
-  script_file = fopen(filename, "r");
-  if (!script_file) {
-    fprintf(stderr, "cannot open script file: \"%s\" %m\n", filename);
-    exit(1);
-  }
-
-  while ((curr_read_size = fread(&script[total_read_size], sizeof(char), BLKSZ,
-                                 script_file)) > 0) {
-    total_read_size += curr_read_size;
-
-    if (total_read_size == curr_buffer_size) {
-      curr_buffer_size *= 2;
-      script = realloc(script, curr_buffer_size);
-    }
-  }
-
-  script[total_read_size] = '\0';
-
-  fclose(script_file);
-  return script;
-}
-
-void reset_tokenizer(Tokenizer *tokenizer, const char *filename) {
-  destroy_tokenizer(tokenizer);
+void initialize_tokenizer(Tokenizer *tokenizer, const char *filename,
+                          char *program) {
   tokenizer->filename = filename;
   tokenizer->column = 0;
   tokenizer->line = 1;
   tokenizer->tokens = make_vector();
-  tokenizer->program = read_file(filename);
+  tokenizer->program = program;
   tokenizer->curr_pos = tokenizer->program;
 }
 
@@ -147,19 +114,44 @@ void destroy_tokenizer(Tokenizer *tokenizer) {
     int num_tokens = vector_len(tokenizer->tokens);
     for (int i = 0; i < num_tokens; ++i) {
       Token *tok = (Token *)DatumGetPtr(vector_get(tokenizer->tokens, i));
-      free_token(tok);
+      if (tok)
+        free_token(tok);
     }
     free_vector(tokenizer->tokens);
   }
-  if (tokenizer->program)
-    free(tokenizer->program);
+  /*
+   * The filename and program are not controlled by tokenizer, so we cannot
+   * destroy them.
+   */
+  tokenizer->program = NULL;
 }
 
-Token *tokenizer_peek(Tokenizer *tokenizer) {
+static Token *tokenizer_peek(Tokenizer *tokenizer) {
   int len = vector_len(tokenizer->tokens);
   if (len == 0)
     return NULL;
   return DatumGetPtr(vector_get(tokenizer->tokens, len - 1));
+}
+
+TokenIter tokenizer_iter(Tokenizer *tokenizer) {
+  TokenIter iter = {.tokenizer = tokenizer, .index = -1};
+  return iter;
+}
+
+Token *token_iter_peek(TokenIter *iter) {
+  assert(iter->tokenizer);
+  if (iter->index == -1) {
+    ++iter->index;
+    return tokenizer_next(iter->tokenizer);
+  }
+  return tokenizer_peek(iter->tokenizer);
+}
+
+Token *token_iter_next(TokenIter *iter) {
+  assert(iter->tokenizer);
+  token_iter_peek(iter);
+  ++iter->index;
+  return tokenizer_next(iter->tokenizer);
 }
 
 static void skip_whitespaces(Tokenizer *tokenizer) {
@@ -366,21 +358,20 @@ static Token *try_make_identifier_token(Tokenizer *tokenizer) {
   return NULL;
 }
 
-Token *tokenizer_next(Tokenizer *tokenizer) {
+static Token *tokenizer_next(Tokenizer *tokenizer) {
   /* Program must be a null terminated string. */
   assert(tokenizer->program);
 
   if (!CURR_CHAR(tokenizer))
-    return NULL;
+    goto out;
 
   while (CURR_CHAR(tokenizer)) {
     /* Consume whitespaces and newlines. */
     skip_whitespaces(tokenizer);
 
     /* No more tokens? Return directly. */
-    if (!CURR_CHAR(tokenizer)) {
+    if (!CURR_CHAR(tokenizer))
       goto out;
-    }
 
     switch (CURR_CHAR(tokenizer)) {
     case ';': {

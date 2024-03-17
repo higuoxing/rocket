@@ -8,137 +8,16 @@
 #include "vm.h"
 
 #include <assert.h>
-#include <bits/getopt_core.h>
 #include <getopt.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+static int flag_debug_only_tokenize = 0;
 static int flag_debug_dump_tokens = 0;
 static char *tokens_output_file = NULL;
 static int flag_debug_dump_ast = 0;
-
-static void dump_ast(AstNode *ast) {
-  //   if (ast) {
-  //     switch (ast->kind) {
-  //     case AST_BOOL: {
-  //       fprintf(stdout, "<bool>: %s\n", ((AstBool *)ast)->boolean ? "#t" :
-  //       "#f"); break;
-  //     }
-  //     case AST_CHAR: {
-  //       fprintf(stdout, "<char>: %c\n", ((AstChar *)ast)->char_);
-  //       break;
-  //     }
-  //     case AST_NUMBER: {
-  //       fprintf(stdout, "<number>: %.2f\n", ((AstNumber *)ast)->number);
-  //       break;
-  //     }
-  //     case AST_IDENT: {
-  //       fprintf(stdout, "<ident>: %s\n", ((AstIdent *)ast)->ident);
-  //       break;
-  //     }
-  //     case AST_PROC_CALL: {
-  //       fprintf(stdout, "<proc_call>: ");
-  //       dump_ast(((AstProcCall *)ast)->callable);
-  //       for (int i = 0; i < vector_len(((AstProcCall *)ast)->args); ++i) {
-  //         fprintf(stdout, "             ");
-  //         dump_ast(
-  //             (AstNode *)DatumGetPtr(vector_get(((AstProcCall *)ast)->args,
-  //             i)));
-  //       }
-  //       fprintf(stdout, "\n");
-  //       break;
-  //     }
-  //     default:
-  //       fprintf(stderr, "%s: AstKind (%d) not implemented!\n", __FUNCTION__,
-  //               ast->kind);
-  //       exit(1);
-  //     }
-  //   } else {
-  //     fprintf(stdout, "<nil>\n");
-  //   }
-}
-
-// static int rocket_main(int argc, char **argv) {
-//   char *line = NULL;
-//
-//   rl_initialize();
-//
-//   for (;;) {
-//     line = readline(PROMPT_STYLE);
-//     if (!line) {
-//       /* Handle ctrl-d */
-//       break;
-//     }
-//
-//     Vector *tokens = tokenize(line, "<stdin>");
-//     int num_tokens = vector_len(tokens);
-//     Vector *program = parse_program(tokens);
-//     Compiler compiler;
-//     VM vm;
-//
-//     initialize_compiler(&compiler);
-//
-// #if 0
-//     for (int i = 0; i < vector_len(program); ++i) {
-//       dump_ast(DatumGetPtr(vector_get(program, i)));
-//     }
-// #endif
-//
-//     /*
-//      * TODO: Add support for executing multiple expressions.
-//      */
-//     assert(vector_len(program) == 1);
-//     for (int i = 0; i < vector_len(program); ++i) {
-//       assert(
-//           compile_expression(&compiler, DatumGetPtr(vector_get(program, i)))
-//           == COMPILE_SUCCESS);
-//     }
-//     initialize_vm(&vm, compiler_give_out_instructions(&compiler),
-//                   compiler_give_out_constants(&compiler), NULL);
-//     vm_run(&vm);
-//
-//     int stack_top = vm.stack_pointer;
-//     switch (vm.stack[stack_top - 1].type) {
-//     case OBJ_BOOL: {
-//       fprintf(stdout, "%s\n",
-//               DatumGetBool(vm.stack[stack_top - 1].value) ? "#t" : "#f");
-//       break;
-//     }
-//     case OBJ_NUMBER: {
-//       fprintf(stdout, "%.4f\n", DatumGetFloat(vm.stack[stack_top -
-//       1].value)); break;
-//     }
-//     default: {
-//       fprintf(stderr, "%s: unrecognized value type: %d\n", __FUNCTION__,
-//               vm.stack[stack_top - 1].type);
-//       exit(1);
-//     }
-//     }
-//
-//     /* Clean up. */
-//     for (int i = 0; i < num_tokens; ++i) {
-//       free_token((Token *)vector_get(tokens, i));
-//     }
-//     free_vector(tokens);
-//
-//     for (int i = 0; i < vector_len(program); ++i) {
-//       AstNode *ast = DatumGetPtr(vector_get(program, i));
-//       if (ast)
-//         free_ast_node(ast);
-//     }
-//     free_vector(program);
-//     destroy_compiler(&compiler);
-//     destroy_vm(&vm);
-//
-//     free(line);
-//     line = NULL;
-//     break;
-//   }
-//
-//   return 0;
-// }
 
 static char *read_file(const char *filename) {
   char *script = malloc(BLKSZ);
@@ -180,6 +59,7 @@ static void rocket_parse_command_args(int argc, char **argv) {
   static struct option long_options[] = {
       {"debug-dump-tokens", optional_argument, &flag_debug_dump_tokens, 1},
       {"debug-dump-ast", no_argument, &flag_debug_dump_ast, 1},
+      {"debug-only-tokenize", no_argument, &flag_debug_only_tokenize, 1},
       {0, 0, 0, 0},
   };
 
@@ -201,11 +81,6 @@ static void rocket_parse_command_args(int argc, char **argv) {
       abort();
     }
   }
-
-  if (optind >= argc) {
-    fprintf(stderr, "script file is missing\n");
-    exit(1);
-  }
 }
 
 static void debug_dump_tokens(const char *output_file_name,
@@ -213,6 +88,7 @@ static void debug_dump_tokens(const char *output_file_name,
   int i = 0;
   FILE *output_file = NULL;
   Token *tok = NULL;
+  TokenIter iter = tokenizer_iter(tokenizer);
 
   if (output_file_name) {
     output_file = fopen(output_file_name, "w+");
@@ -223,7 +99,9 @@ static void debug_dump_tokens(const char *output_file_name,
     }
   }
 
-  while ((tok = tokenizer_next(tokenizer)) != NULL) {
+  /* Force all tokens to be consumed. */
+  for (tok = token_iter_peek(&iter); tok->kind != TOKEN_EOF;
+       tok = token_iter_next(&iter)) {
     fprintf(output_file ? output_file : stdout, "(%d:%d) %s: %s\n",
             tok->loc.line, tok->loc.column, token_kind_str(tok),
             tok->literal ? tok->literal : "");
@@ -233,26 +111,38 @@ static void debug_dump_tokens(const char *output_file_name,
     fclose(output_file);
 }
 
+static int eval_script(const char *script_name) {
+  char *script;
+  Tokenizer tokenizer;
+
+  script = read_file(script_name);
+  initialize_tokenizer(&tokenizer, script_name, script);
+
+  if (flag_debug_dump_tokens)
+    debug_dump_tokens(tokens_output_file, &tokenizer);
+
+  if (flag_debug_dump_ast)
+    (void)(0);
+
+  destroy_tokenizer(&tokenizer);
+  free(script);
+
+  return 0;
+}
+
 static int rocket_main(int argc, char **argv) {
-  char *script = NULL;
   Vector *tokens = NULL;
   char *script_name;
-  Tokenizer tokenizer;
+  Vector *parsed_prog = NULL;
 
   rocket_parse_command_args(argc, argv);
 
-  script_name = argv[optind];
-  reset_tokenizer(&tokenizer, script_name);
-
-  if (flag_debug_dump_tokens) {
-    debug_dump_tokens(tokens_output_file, &tokenizer);
+  if (optind >= argc) {
+    fprintf(stderr, "script file is missing\n");
+    exit(1);
   }
 
-  if (flag_debug_dump_ast) {
-    dump_ast(NULL);
-  }
-
-  return 0;
+  return eval_script(argv[optind]);
 }
 
 int main(int argc, char **argv) {
