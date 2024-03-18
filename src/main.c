@@ -83,7 +83,7 @@ static void rocket_parse_command_args(int argc, char **argv) {
     }
     }
     default:
-      assert("unrecognized option" && 0);
+      exit(1);
     }
   }
 }

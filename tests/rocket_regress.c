@@ -73,7 +73,7 @@ static void parse_command_args(int argc, char **argv) {
       break;
     }
     default:
-      abort();
+      exit(1);
     }
   }
 }
